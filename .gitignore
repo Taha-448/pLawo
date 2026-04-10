@@ -1,0 +1,19 @@
+# Ignore dependencies
+node_modules/
+
+# Ignore environment variables (SECURITY RISK)
+.env
+.env.local
+
+# Build outputs
+/frontend/dist/
+/backend/public/uploads/*
+!/backend/public/uploads/.gitkeep
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db

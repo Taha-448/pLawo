@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  LAWYER
+  CLIENT
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(CLIENT)
+
+  lawyerProfile     LawyerProfile?
+  
+  appointmentsAsClient Appointment[] @relation("ClientAppointments")
+  appointmentsAsLawyer Appointment[] @relation("LawyerAppointments")
+  
+  reviewsAsClient      Review[]      @relation("ClientReviews")
+  reviewsAsLawyer      Review[]      @relation("LawyerReviews")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LawyerProfile {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique
+  specialization String
+  city           String
+  bio            String?  @db.Text
+  fees           Decimal
+  isVerified     Boolean  @default(false)
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Appointment {
+  id        Int      @id @default(autoincrement())
+  clientId  Int
+  lawyerId  Int
+  date      DateTime @db.Date // Ensures we just store the date component
+  time      String   
+  status    String   @default("PENDING") 
+
+  client    User     @relation("ClientAppointments", fields: [clientId], references: [id], onDelete: Cascade)
+  lawyer    User     @relation("LawyerAppointments", fields: [lawyerId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  clientId  Int
+  lawyerId  Int
+  rating    Int
+  comment   String?  @db.Text
+
+  client    User     @relation("ClientReviews", fields: [clientId], references: [id], onDelete: Cascade)
+  lawyer    User     @relation("LawyerReviews", fields: [lawyerId], references: [id], onDelete: Cascade)
+}
