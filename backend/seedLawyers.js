@@ -1,7 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
+const { supabase } = require('./config/supabase');
 const bcrypt = require('bcryptjs');
-
-const prisma = new PrismaClient();
 
 const mockLawyers = [
   {
@@ -85,58 +83,66 @@ const mockLawyers = [
 ];
 
 async function main() {
-  console.log('Seeding database with photos...');
+  console.log('Seeding database with Supabase...');
   for (const lawyerData of mockLawyers) {
-    const existingUser = await prisma.user.findUnique({
-      where: { email: lawyerData.email }
-    });
+    const { data: existingUser } = await supabase
+      .from('User')
+      .select('id')
+      .eq('email', lawyerData.email)
+      .single();
 
     if (!existingUser) {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(lawyerData.password, salt);
 
-      const user = await prisma.user.create({
-        data: {
+      const { data: user, error: userError } = await supabase
+        .from('User')
+        .insert({
           name: lawyerData.name,
           email: lawyerData.email,
           password: hashedPassword,
           role: 'LAWYER',
-          lawyerProfile: {
-            create: {
-              specialization: lawyerData.profile.specialization,
-              city: lawyerData.profile.city,
-              bio: lawyerData.profile.bio,
-              fees: lawyerData.profile.fees,
-              isVerified: lawyerData.profile.isVerified,
-              profilePhoto: lawyerData.profile.profilePhoto
-            }
-          }
-        }
-      });
-      console.log(`Created lawyer: ${user.name}`);
+        })
+        .select()
+        .single();
+
+      if (userError) {
+        console.error(`Error creating user ${lawyerData.email}:`, userError);
+        continue;
+      }
+
+      const { error: profileError } = await supabase
+        .from('LawyerProfile')
+        .insert({
+          userId: user.id,
+          specialization: lawyerData.profile.specialization,
+          city: lawyerData.profile.city,
+          bio: lawyerData.profile.bio,
+          fees: lawyerData.profile.fees,
+          isVerified: lawyerData.profile.isVerified,
+          profilePhoto: lawyerData.profile.profilePhoto
+        });
+
+      if (profileError) {
+        console.error(`Error creating profile for ${lawyerData.email}:`, profileError);
+      } else {
+        console.log(`Created lawyer: ${user.name}`);
+      }
     } else {
-      console.log(`Lawyer ${lawyerData.email} already exists, updating their profile photo...`);
-      await prisma.user.update({
-        where: { email: lawyerData.email },
-        data: {
-          lawyerProfile: {
-            update: { 
-              isVerified: true,
-              profilePhoto: lawyerData.profile.profilePhoto
-            }
-          }
-        }
-      });
+      console.log(`Lawyer ${lawyerData.email} already exists, updating their profile...`);
+      await supabase
+        .from('LawyerProfile')
+        .update({ 
+          isVerified: true,
+          profilePhoto: lawyerData.profile.profilePhoto
+        })
+        .eq('userId', existingUser.id);
     }
   }
   console.log('Seeding complete.');
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

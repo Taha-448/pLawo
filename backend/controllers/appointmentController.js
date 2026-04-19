@@ -1,22 +1,22 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { supabase } = require('../config/supabase');
 
 const createAppointment = async (req, res) => {
   try {
     const { lawyerId, date, time } = req.body;
     const clientId = req.user.userId;
 
-    // Optional validation logic here
-
-    const appointment = await prisma.appointment.create({
-      data: {
-        clientId,
-        lawyerId: parseInt(lawyerId),
-        date: new Date(date),
+    const { data: appointment, error } = await supabase
+      .from('Appointment')
+      .insert({
+        lawyerId: lawyerId,
+        date: date, // date is already in YYYY-MM-DD or ISO format from frontend
         time,
         status: 'PENDING'
-      }
-    });
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
 
     res.status(201).json(appointment);
   } catch (error) {
@@ -29,22 +29,29 @@ const getMyAppointments = async (req, res) => {
   try {
     const { userId, role } = req.user;
 
-    let appointments = [];
+    let query = supabase.from('Appointment').select(`
+      *,
+      lawyer:User!Appointment_lawyerId_fkey(
+        name,
+        lawyerProfile:LawyerProfile(*)
+      ),
+      client:User!Appointment_clientId_fkey(
+        name,
+        email
+      )
+    `);
+
     if (role === 'CLIENT') {
-      appointments = await prisma.appointment.findMany({
-        where: { clientId: userId },
-        include: { lawyer: { select: { name: true, lawyerProfile: true } } },
-        orderBy: { date: 'asc' }
-      });
+      query = query.eq('clientId', userId);
     } else if (role === 'LAWYER') {
-      appointments = await prisma.appointment.findMany({
-        where: { lawyerId: userId },
-        include: { client: { select: { name: true, email: true } } },
-        orderBy: { date: 'asc' }
-      });
+      query = query.eq('lawyerId', userId);
     } else {
       return res.status(403).json({ message: 'Not authorized for appointments' });
     }
+
+    const { data: appointments, error } = await query.order('date', { ascending: true });
+
+    if (error) throw error;
     
     res.status(200).json(appointments);
   } catch (error) {
@@ -60,18 +67,25 @@ const updateAppointmentStatus = async (req, res) => {
     const lawyerId = req.user.userId;
 
     // Verify appointment belongs to this lawyer
-    const appointment = await prisma.appointment.findFirst({
-      where: { id: parseInt(id), lawyerId }
-    });
+    const { data: appointment, error: findError } = await supabase
+      .from('Appointment')
+      .select('id')
+      .eq('id', id)
+      .eq('lawyerId', lawyerId)
+      .single();
 
-    if (!appointment) {
+    if (findError || !appointment) {
       return res.status(404).json({ message: 'Appointment not found or not authorized' });
     }
 
-    const updated = await prisma.appointment.update({
-      where: { id: parseInt(id) },
-      data: { status }
-    });
+    const { data: updated, error: updateError } = await supabase
+      .from('Appointment')
+      .update({ status })
+      .eq('id', parseInt(id))
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
 
     res.status(200).json(updated);
   } catch (error) {

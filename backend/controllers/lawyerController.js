@@ -1,22 +1,14 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { supabase } = require('../config/supabase');
 
 const getLawyers = async (req, res) => {
   try {
-    const lawyers = await prisma.user.findMany({
-      where: {
-        role: 'LAWYER',
-        lawyerProfile: {
-          isVerified: true,
-        }
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        lawyerProfile: true,
-      }
-    });
+    const { data: lawyers, error } = await supabase
+      .from('User')
+      .select('id, name, email, lawyerProfile:LawyerProfile!inner(*)')
+      .eq('role', 'LAWYER')
+      .eq('LawyerProfile.isVerified', true);
+
+    if (error) throw error;
     res.status(200).json(lawyers);
   } catch (error) {
     console.error('Error fetching lawyers', error);
@@ -26,28 +18,25 @@ const getLawyers = async (req, res) => {
 
 const getLawyerById = async (req, res) => {
   try {
-    const { id } = req.params;
-    const lawyerId = parseInt(id);
+    const lawyerId = id;
 
-    const lawyer = await prisma.user.findFirst({
-      where: {
-        id: lawyerId,
-        role: 'LAWYER',
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        lawyerProfile: true,
-        reviewsAsLawyer: {
-          include: {
-            client: { select: { name: true } }
-          }
-        }
-      }
-    });
+    const { data: lawyer, error } = await supabase
+      .from('User')
+      .select(`
+        id, 
+        name, 
+        email, 
+        lawyerProfile:LawyerProfile(*),
+        reviewsAsLawyer:Review(
+          *,
+          client:User(name)
+        )
+      `)
+      .eq('id', lawyerId)
+      .eq('role', 'LAWYER')
+      .single();
 
-    if (!lawyer) {
+    if (error || !lawyer) {
       return res.status(404).json({ message: 'Lawyer not found' });
     }
     
@@ -63,15 +52,19 @@ const updateLawyerProfile = async (req, res) => {
     const { specialization, city, bio, fees } = req.body;
     const userId = req.user.userId;
 
-    const updatedProfile = await prisma.lawyerProfile.update({
-      where: { userId: userId },
-      data: {
+    const { data: updatedProfile, error } = await supabase
+      .from('LawyerProfile')
+      .update({
         specialization,
         city,
         bio,
         fees: parseFloat(fees) || 0.00
-      }
-    });
+      })
+      .eq('userId', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
 
     res.status(200).json(updatedProfile);
   } catch (error) {

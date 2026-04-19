@@ -1,16 +1,26 @@
 /**
  * aiService.js
  * Professional Artificial Intelligence Legal Connector for pLawo
- * Uses the latest Gemini 2.x API for comprehensive, non-hardcoded legal analysis.
+ * Uses OpenAI GPT-4o-mini for comprehensive, non-hardcoded legal analysis.
  */
 
+const OpenAI = require('openai');
+
 const getLegalCategory = async (problemDescription) => {
-  const API_KEY = process.env.GEMINI_API_KEY;
+  const API_KEY = process.env.OPENAI_API_KEY;
   
-  // REST API configuration - Using Gemini 2.0 Flash (Stable & Fast)
-  // This model is explicitly listed as available for your API key
-  const MODEL_ID = "gemini-2.0-flash"; 
-  const REST_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_ID}:generateContent?key=${API_KEY}`;
+  if (!API_KEY) {
+    console.error("OPENAI_API_KEY is missing in .env");
+    return {
+      category: "Other",
+      analysis: "AI Analysis is currently unavailable. We've matched you with our general legal professionals.",
+      applicableLaws: ["The Constitution of Pakistan, 1973"]
+    };
+  }
+
+  const openai = new OpenAI({
+    apiKey: API_KEY,
+  });
 
   try {
     const prompt = `
@@ -32,32 +42,21 @@ const getLegalCategory = async (problemDescription) => {
     }
     `;
 
-    const response = await fetch(REST_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are a professional Pakistani legal assistant." },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" }
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Gemini API Error: ${response.status} - ${JSON.stringify(errorData)}`);
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const content = completion.choices[0].message.content;
     
-    // Extract and parse JSON
     try {
-      const firstBrace = text.indexOf('{');
-      const lastBrace = text.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1) {
-        return JSON.parse(text.substring(firstBrace, lastBrace + 1));
-      }
-      return JSON.parse(text);
+      return JSON.parse(content);
     } catch (parseError) {
-      console.error("AI response could not be parsed as JSON:", text);
+      console.error("AI response could not be parsed as JSON:", content);
       throw parseError;
     }
 

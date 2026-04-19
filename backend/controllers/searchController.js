@@ -1,7 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
+const { supabase } = require('../config/supabase');
 const { getLegalCategory } = require('../services/aiService');
-
-const prisma = new PrismaClient();
 
 const smartSearch = async (req, res) => {
   const { description } = req.body;
@@ -11,29 +9,24 @@ const smartSearch = async (req, res) => {
   }
 
   try {
-    // 1. Ask Gemini to classify the problem
+    // 1. Ask AI to classify the problem
     const aiResult = await getLegalCategory(description);
     const category = aiResult.category;
 
-    // 3. Query the database for Verified Lawyers with this specialization
-    // If it's "Other", we'll just fetch all lawyers or general practitioners
-    const matchingLawyers = await prisma.user.findMany({
-      where: {
-        role: 'LAWYER',
-        lawyerProfile: {
-          isVerified: true,
-          specialization: {
-            contains: (category === "Other" || !category) ? "" : category
-          }
-        }
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        lawyerProfile: true 
-      }
-    });
+    // 2. Query Supabase for Verified Lawyers with this specialization
+    let query = supabase
+      .from('User')
+      .select('id, name, email, lawyerProfile:LawyerProfile!inner(*)')
+      .eq('role', 'LAWYER')
+      .eq('LawyerProfile.isVerified', true);
+
+    if (category && category !== "Other") {
+      query = query.ilike('LawyerProfile.specialization', `%${category}%`);
+    }
+
+    const { data: matchingLawyers, error } = await query;
+
+    if (error) throw error;
 
     res.status(200).json({
       aiAssignedCategory: aiResult.category,

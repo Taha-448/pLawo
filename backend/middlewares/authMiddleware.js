@@ -1,6 +1,6 @@
-const jwt = require('jsonwebtoken');
+const { supabase } = require('../config/supabase');
 
-const authenticateUser = (req, res, next) => {
+const authenticateUser = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Authentication invalid or missing token' });
@@ -9,11 +9,29 @@ const authenticateUser = (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    // Attach user payload (e.g. { userId, role }) to the request object
-    req.user = { userId: payload.userId, role: payload.role };
+    // 1. Verify token with Supabase
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+
+    if (error || !user) {
+      return res.status(401).json({ message: 'Authentication invalid' });
+    }
+
+    // 2. Fetch role from our public.User table
+    const { data: dbUser, error: dbError } = await supabase
+      .from('User')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (dbError || !dbUser) {
+      return res.status(401).json({ message: 'User not found in database' });
+    }
+
+    // Attach user payload to the request object
+    req.user = { userId: user.id, role: dbUser.role };
     next();
   } catch (error) {
+    console.error('Auth middleware error:', error);
     return res.status(401).json({ message: 'Authentication invalid' });
   }
 };

@@ -1,11 +1,9 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { supabase } = require('../config/supabase');
 
 const adminDashboard = async (req, res) => {
   try {
     const { timeRange = '6months' } = req.query;
     
-    // Calculate start date based on timeRange
     let startDate = new Date();
     if (timeRange === '30days') {
       startDate.setDate(startDate.getDate() - 30);
@@ -14,35 +12,34 @@ const adminDashboard = async (req, res) => {
     } else if (timeRange === '6months') {
       startDate.setMonth(startDate.getMonth() - 6);
     } else if (timeRange === 'allTime') {
-      startDate = new Date(0); // Epoch start
+      startDate = new Date(0);
     }
 
-    const totalLawyers = await prisma.user.count({ where: { role: 'LAWYER' } });
-    const totalClients = await prisma.user.count({ where: { role: 'CLIENT' } });
-    
-    const totalAppointments = await prisma.appointment.count({
-      where: {
-        date: { gte: startDate }
-      }
-    });
+    const isoStartDate = startDate.toISOString();
 
-    const pendingLawyers = await prisma.user.findMany({
-      where: {
-        role: 'LAWYER',
-        lawyerProfile: { isVerified: false }
-      },
-      include: { lawyerProfile: true }
-    });
+    const [
+      { count: totalLawyers },
+      { count: totalClients },
+      { count: totalAppointments },
+      { data: pendingLawyers },
+      { data: appointments }
+    ] = await Promise.all([
+      supabase.from('User').select('*', { count: 'exact', head: true }).eq('role', 'LAWYER'),
+      supabase.from('User').select('*', { count: 'exact', head: true }).eq('role', 'CLIENT'),
+      supabase.from('Appointment').select('*', { count: 'exact', head: true }).gte('date', isoStartDate),
+      supabase.from('User').select('*, lawyerProfile:LawyerProfile!inner(*)').eq('role', 'LAWYER').eq('LawyerProfile.isVerified', false),
+      supabase.from('Appointment').select(`
+        date,
+        lawyer:User!Appointment_lawyerId_fkey(
+          lawyerProfile:LawyerProfile(specialization)
+        )
+      `).gte('date', isoStartDate)
+    ]);
 
-    // Monthly Apppointments Trend
-    const appointments = await prisma.appointment.findMany({
-      where: { date: { gte: startDate } },
-      select: { date: true }
-    });
-
+    // Monthly Trend
     const monthlyTrendMap = {};
-    appointments.forEach(apt => {
-      const month = apt.date.toLocaleString('default', { month: 'short' });
+    appointments?.forEach(apt => {
+      const month = new Date(apt.date).toLocaleString('default', { month: 'short' });
       monthlyTrendMap[month] = (monthlyTrendMap[month] || 0) + 1;
     });
 
@@ -51,18 +48,9 @@ const adminDashboard = async (req, res) => {
       count: monthlyTrendMap[month]
     }));
 
-    // Specialization Distribution (based on appointments)
-    const appointmentsWithSpecialization = await prisma.appointment.findMany({
-      where: { date: { gte: startDate } },
-      include: {
-        lawyer: {
-          include: { lawyerProfile: true }
-        }
-      }
-    });
-
+    // Specialization Distribution
     const specializationMap = {};
-    appointmentsWithSpecialization.forEach(apt => {
+    appointments?.forEach(apt => {
       const spec = apt.lawyer?.lawyerProfile?.specialization || 'General';
       specializationMap[spec] = (specializationMap[spec] || 0) + 1;
     });
@@ -93,13 +81,20 @@ const verifyLawyer = async (req, res) => {
   try {
     const { lawyerId } = req.params;
     
-    const profile = await prisma.lawyerProfile.findUnique({ where: { userId: parseInt(lawyerId) } });
-    if (!profile) return res.status(404).json({ message: 'Lawyer profile not found' });
+    const { data: profile, error: findError } = await supabase
+      .from('LawyerProfile')
+      .select('id')
+      .eq('userId', lawyerId)
+      .single();
 
-    await prisma.lawyerProfile.update({
-      where: { userId: parseInt(lawyerId) },
-      data: { isVerified: true }
-    });
+    if (findError || !profile) return res.status(404).json({ message: 'Lawyer profile not found' });
+
+    const { error: updateError } = await supabase
+      .from('LawyerProfile')
+      .update({ isVerified: true })
+      .eq('userId', lawyerId);
+
+    if (updateError) throw updateError;
     
     res.status(200).json({ message: 'Lawyer successfully verified' });
   } catch (error) {
