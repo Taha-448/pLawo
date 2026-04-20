@@ -27,15 +27,24 @@ export default function ClientDashboard() {
     
     appointmentApi.getMyAppointments()
       .then(data => {
-        const mapped = data.map((apt) => ({
-          id: apt.id.toString(),
-          lawyerName: apt.lawyer?.name || 'Unknown',
-          legalIssue: apt.lawyer?.lawyerProfile?.specialization || 'Consultation',
-          date: new Date(apt.date).toLocaleDateString(),
-          time: apt.time,
-          status: apt.status.toLowerCase(),
-          review: null
-        }));
+        const mapped = data.map((apt) => {
+          // Format time from "09:00:00" to "09:00 AM"
+          const [h, m] = apt.time.split(':');
+          const hr = parseInt(h);
+          const period = hr >= 12 ? 'PM' : 'AM';
+          const displayHr = hr > 12 ? hr - 12 : (hr === 0 ? 12 : hr);
+          const formattedTime = `${displayHr.toString().padStart(2, '0')}:${m} ${period}`;
+          
+          return {
+            id: apt.id.toString(),
+            lawyerName: apt.lawyer?.name || 'Unknown',
+            legalIssue: apt.legalIssue || 'Consultation Request',
+            date: new Date(apt.date).toLocaleDateString(),
+            time: formattedTime,
+            status: apt.status.toLowerCase(),
+            review: null
+          };
+        });
         setUserAppointments(mapped);
       })
       .catch(err => console.error(err));

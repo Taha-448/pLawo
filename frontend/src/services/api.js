@@ -19,7 +19,7 @@ export const searchApi = {
   smartSearch: async (description) => {
     const response = await fetch(`${API_URL}/search/smart`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await getAuthHeaders(),
       body: JSON.stringify({ description }),
     });
     if (!response.ok) {
@@ -55,6 +55,18 @@ export const lawyerApi = {
   getLawyerById: async (id) => {
     const response = await fetch(`${API_URL}/lawyers/${id}`, { headers: await getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch lawyer profile');
+    return response.json();
+  },
+  updateLawyerProfile: async (formData) => {
+    const response = await fetch(`${API_URL}/lawyers/profile`, {
+      method: 'PUT',
+      headers: await getAuthHeaders(true),
+      body: formData,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to update profile');
+    }
     return response.json();
   }
 };
@@ -100,6 +112,33 @@ export const adminApi = {
       headers: await getAuthHeaders()
     });
     if (!response.ok) throw new Error('Failed to verify lawyer');
+    return response.json();
+  },
+  getLicenseUrl: async (lawyerId) => {
+    const response = await fetch(`${API_URL}/admin/license/${lawyerId}`, {
+      headers: await getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to fetch license URL');
+    return response.json();
+  }
+};
+
+export const availabilityApi = {
+  getLawyerAvailability: async (lawyerId) => {
+    const response = await fetch(`${API_URL}/availability/${lawyerId}`);
+    if (!response.ok) throw new Error('Failed to fetch availability');
+    return response.json();
+  },
+  setAvailability: async (availability) => {
+    const response = await fetch(`${API_URL}/availability`, {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({ availability }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to update availability');
+    }
     return response.json();
   }
 };

@@ -1,4 +1,5 @@
 const { supabase } = require('../config/supabase');
+const { uploadToSupabase } = require('../utils/storageUtils');
 
 const getLawyers = async (req, res) => {
   try {
@@ -18,7 +19,7 @@ const getLawyers = async (req, res) => {
 
 const getLawyerById = async (req, res) => {
   try {
-    const lawyerId = id;
+    const { id: lawyerId } = req.params;
 
     const { data: lawyer, error } = await supabase
       .from('User')
@@ -26,17 +27,18 @@ const getLawyerById = async (req, res) => {
         id, 
         name, 
         email, 
-        lawyerProfile:LawyerProfile(*),
-        reviewsAsLawyer:Review(
-          *,
-          client:User(name)
-        )
+        lawyerProfile:LawyerProfile(*)
       `)
       .eq('id', lawyerId)
       .eq('role', 'LAWYER')
       .single();
 
-    if (error || !lawyer) {
+    if (error) {
+      console.error('Supabase error in getLawyerById:', error);
+      return res.status(404).json({ message: 'Lawyer not found', details: error.message });
+    }
+    
+    if (!lawyer) {
       return res.status(404).json({ message: 'Lawyer not found' });
     }
     
@@ -49,17 +51,30 @@ const getLawyerById = async (req, res) => {
 
 const updateLawyerProfile = async (req, res) => {
   try {
-    const { specialization, city, bio, fees } = req.body;
+    const { specialization, city, bio, fees, education, barLicenseNumber } = req.body;
     const userId = req.user.userId;
+    
+    let updateData = {
+      specialization,
+      city,
+      bio,
+      education,
+      barLicenseNumber,
+      fees: parseFloat(fees) || 0.00
+    };
+
+    if (req.files) {
+      if (req.files.profilePhoto) {
+        updateData.profilePhoto = await uploadToSupabase(req.files.profilePhoto[0], 'profile-photos');
+      }
+      if (req.files.barLicenseFile) {
+        updateData.barLicenseFile = await uploadToSupabase(req.files.barLicenseFile[0], 'bar-licenses');
+      }
+    }
 
     const { data: updatedProfile, error } = await supabase
       .from('LawyerProfile')
-      .update({
-        specialization,
-        city,
-        bio,
-        fees: parseFloat(fees) || 0.00
-      })
+      .update(updateData)
       .eq('userId', userId)
       .select()
       .single();

@@ -1,23 +1,17 @@
 const { supabase } = require('../config/supabase');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-
-// registerClient is now handled by Supabase Auth + Trigger on frontend
-// This endpoint is kept as a fallback or for syncing if needed
-const registerClient = async (req, res) => {
-  const { email, name } = req.body;
-  // If the frontend calls this, it means Supabase Auth already created the user.
-  // The trigger handles the insert into public."User".
-  // We can just return success here.
-  res.status(200).json({ message: 'Client registration handled by Supabase Auth' });
-};
+const { uploadToSupabase } = require('../utils/storageUtils');
 
 const registerLawyer = async (req, res) => {
   const { userId, specialization, city, fees, bio, yearsOfExperience, education, barLicenseNumber } = req.body;
   
-  let profilePhoto = req.body.profilePhoto;
+  let profilePhoto = null;
   if (req.file) {
-    profilePhoto = `/uploads/${req.file.filename}`;
+    try {
+      profilePhoto = await uploadToSupabase(req.file, 'profile-photos');
+    } catch (err) {
+      console.error("Storage Error:", err);
+      // Fallback or handle error
+    }
   }
 
   if (!userId || !specialization || !city) {
@@ -29,7 +23,6 @@ const registerLawyer = async (req, res) => {
     let user = null;
     
     for (let i = 0; i < 3; i++) {
-      // Use .select().eq().maybeSingle() instead of .single() to avoid PGRST116 error during retries
       const { data, error } = await supabase
         .from('User')
         .select('*')
@@ -44,7 +37,7 @@ const registerLawyer = async (req, res) => {
       console.log(`User not found yet (attempt ${i + 1}), retrying in 1s...`);
       if (error) console.log("Current Supabase Error:", error.message);
       
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     if (!user) {
@@ -81,43 +74,6 @@ const registerLawyer = async (req, res) => {
   }
 };
 
-const login = async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ message: 'Please provide email and password' });
-  }
-
-  try {
-    const { data: user, error } = await supabase
-      .from('User')
-      .select('*')
-      .eq('email', email)
-      .single();
-
-    if (error || !user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-
-    // Note: With Supabase Auth, you'd normally use supabase.auth.signInWithPassword
-    // but if you want to keep the local password check (if you synced passwords):
-    if (user.password) {
-      const isPasswordCorrect = await bcrypt.compare(password, user.password);
-      if (!isPasswordCorrect) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-    }
-
-    const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    res.status(200).json({ user: { id: user.id, name: user.name, role: user.role }, token });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
 module.exports = {
-  registerClient,
-  registerLawyer,
-  login
+  registerLawyer
 };

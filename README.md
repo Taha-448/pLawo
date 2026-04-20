@@ -20,10 +20,11 @@ In Pakistan, finding the right legal counsel is often a process of trial and err
 ## 💡 The Solution
 
 **pLawo** simplifies this journey by providing a centralized, AI-enhanced marketplace:
-1.  **AI Smart Search**: Users describe their problems in plain English, and our AI (GPT-4o-mini) analyzes the query, classifies it into legal categories (Family, Criminal, Corporate, etc.), and cites relevant Pakistani laws.
-2.  **Verified Professional Network**: Lawyers undergo a strict verification process managed by platform administrators.
-3.  **Seamless Booking**: Direct appointment scheduling between clients and specialized lawyers.
-4.  **Role-Based Dashboards**: Tailored experiences for Clients, Lawyers, and Administrators.
+1.  **AI Smart Search**: Users describe their problems in plain English or Urdu (Transliterated), and our AI (GPT-4o-mini) analyzes the query, classifies it into legal categories, and cites relevant Pakistani laws.
+2.  **Verified Professional Network**: Lawyers undergo a strict verification process involving private Bar License uploads and admin review.
+3.  **Flexible Availability**: Dynamic office hours management with 1-hour slot generation and conflict prevention.
+4.  **Local Context**: Comprehensive support for all major Pakistani cities and professional PKR fee formatting.
+5.  **Role-Based Dashboards**: Tailored experiences for Clients, Lawyers, and Administrators with real-time status tracking.
 
 ---
 
@@ -39,7 +40,8 @@ In Pakistan, finding the right legal counsel is often a process of trial and err
 ### Backend
 - **Runtime**: Node.js & Express
 - **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
+- **Authentication**: Supabase Auth (RBAC via JWT)
+- **Storage**: Supabase Storage (Private/Public Buckets)
 - **AI Integration**: OpenAI SDK (GPT-4o-mini)
 
 ---
@@ -130,7 +132,17 @@ To populate the platform with initial data, run these commands in the `backend/`
 ## 🛡️ Security
 - **JWT Protection**: All sensitive routes are protected by Supabase Auth tokens.
 - **RBAC**: Middleware ensures only authorized roles (ADMIN, LAWYER) can access specific endpoints.
+- **Private Storage**: Bar Council Licenses are stored in private buckets and only accessible to admins via temporary signed URLs.
 - **Secrets Management**: All API keys are excluded from version control via `.gitignore`.
+
+---
+
+## ✨ Key Features
+- ✅ **AI Legal Classifier**: Maps user queries to specific Pakistani Legal Acts.
+- ✅ **25+ Cities Support**: From Karachi to small towns like Chiniot.
+- ✅ **PKR Localization**: Professional fee displays without redundant currency symbols.
+- ✅ **Appointment Life Cycle**: Pending -> Confirmed -> Completed.
+- ✅ **Secure Admin Panel**: High-level overview and verification queue.
 
 ---
 

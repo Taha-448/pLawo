@@ -1,5 +1,4 @@
 const { supabase } = require('./config/supabase');
-const bcrypt = require('bcryptjs');
 
 const mockLawyers = [
   {
@@ -92,15 +91,11 @@ async function main() {
       .single();
 
     if (!existingUser) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(lawyerData.password, salt);
-
       const { data: user, error: userError } = await supabase
         .from('User')
         .insert({
           name: lawyerData.name,
           email: lawyerData.email,
-          password: hashedPassword,
           role: 'LAWYER',
         })
         .select()

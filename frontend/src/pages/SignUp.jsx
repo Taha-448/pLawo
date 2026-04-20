@@ -209,21 +209,31 @@ export default function SignUp() {
                   <Input id="city" name="city" type="text" value={formData.city} onChange={handleInputChange} required />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
-                  <Label htmlFor="fees">Consultation Fee</Label>
-                  <Input id="fees" name="fees" type="number" value={formData.fees} onChange={handleInputChange} required />
+                  <Label htmlFor="fees">Consultation Fee (PKR)</Label>
+                  <Input id="fees" name="fees" type="number" placeholder="e.g. 5000" value={formData.fees} onChange={handleInputChange} required />
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="barLicenseNumber">Bar License Number</Label>
+                  <Input id="barLicenseNumber" name="barLicenseNumber" type="text" placeholder="e.g. BAL-12345" value={formData.barLicenseNumber} onChange={handleInputChange} required />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
                   <Label htmlFor="yearsOfExperience">Years of Experience</Label>
                   <Input id="yearsOfExperience" name="yearsOfExperience" type="number" value={formData.yearsOfExperience} onChange={handleInputChange} required />
                 </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="education">Education</Label>
+                  <Input id="education" name="education" type="text" placeholder="e.g. LLB, LLM" value={formData.education} onChange={handleInputChange} required />
+                </div>
                 <div className="col-span-2">
                   <Label htmlFor="profilePhoto">Profile Photo</Label>
                   <Input id="profilePhoto" name="profilePhoto" type="file" accept="image/*" onChange={handleFileChange} />
+                  <p className="text-[10px] text-[#64748b] mt-1 italic">* Recommended: Square aspect ratio (1:1)</p>
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor="bio">About / Bio</Label>
                   <textarea
                     id="bio" name="bio" value={formData.bio} onChange={handleInputChange}
+                    placeholder="Tell clients about your expertise..."
                     className="mt-2 w-full p-3 rounded-md border border-[#1e293b]/20 min-h-[80px] text-sm"
                   />
                 </div>

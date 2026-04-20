@@ -5,18 +5,57 @@ const createAppointment = async (req, res) => {
     const { lawyerId, date, time } = req.body;
     const clientId = req.user.userId;
 
-    const { data: appointment, error } = await supabase
+    if (!lawyerId || !date || !time) {
+      return res.status(400).json({ message: 'Missing required fields (lawyerId, date, time)' });
+    }
+
+    // 1. Validate Lawyer Availability
+    // Use getUTCDay() because 'YYYY-MM-DD' strings are parsed as UTC midnight
+    const dayOfWeek = new Date(date).getUTCDay(); 
+    
+    const { data: availability, error: availError } = await supabase
+      .from('Availability')
+      .select('*')
+      .eq('lawyerId', lawyerId)
+      .eq('dayOfWeek', dayOfWeek)
+      .lte('startTime', time)
+      .gte('endTime', time);
+
+    if (availError) throw availError;
+
+    if (!availability || availability.length === 0) {
+      return res.status(400).json({ message: 'Lawyer is not available at this day or time' });
+    }
+
+    // 2. Check for Conflicts (Existing Appointments)
+    const { data: conflict, error: conflictError } = await supabase
+      .from('Appointment')
+      .select('id')
+      .eq('lawyerId', lawyerId)
+      .eq('date', date)
+      .eq('time', time)
+      .maybeSingle();
+
+    if (conflictError) throw conflictError;
+    if (conflict) {
+      return res.status(400).json({ message: 'This time slot is already booked' });
+    }
+
+    // 3. Create Appointment
+    const { data: appointment, error: insertError } = await supabase
       .from('Appointment')
       .insert({
+        clientId: clientId,
         lawyerId: lawyerId,
-        date: date, // date is already in YYYY-MM-DD or ISO format from frontend
+        date: date,
         time,
+        legalIssue: req.body.legalIssue || 'Consultation Request',
         status: 'PENDING'
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (insertError) throw insertError;
 
     res.status(201).json(appointment);
   } catch (error) {

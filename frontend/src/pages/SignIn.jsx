@@ -34,15 +34,35 @@ export default function SignIn() {
       if (error) throw error;
       
       const user = data.user;
-      const role = user.user_metadata?.role || 'CLIENT';
+      if (!user) throw new Error('Login failed: No user data returned');
+
+      // 2. Fetch role from public.User table
+      const { data: dbUser, error: roleError } = await supabase
+        .from('User')
+        .select('role, name')
+        .eq('id', user.id)
+        .maybeSingle(); // Use maybeSingle to avoid 406 if profile doesn't exist yet
+      
+      if (roleError) {
+        console.error("Database fetch error:", roleError);
+        throw new Error('Could not fetch user profile. Please check if your account is fully set up.');
+      }
+
+      if (!dbUser) {
+        throw new Error('User profile not found. If you just signed up, please wait a few seconds for the system to sync.');
+      }
+
+      const role = dbUser.role || 'CLIENT';
       
       // Store user info for easy access
-      localStorage.setItem('user', JSON.stringify({
+      const userData = {
         id: user.id,
         email: user.email,
-        name: user.user_metadata?.name,
+        name: dbUser.name || user.email,
         role: role
-      }));
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userData));
 
       toast.success('Signed in successfully!');
 

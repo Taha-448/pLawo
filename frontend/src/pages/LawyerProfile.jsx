@@ -7,9 +7,10 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Calendar } from '../components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
-import { MapPin, Briefcase, Star, CheckCircle2, GraduationCap, FileText, Clock } from 'lucide-react';
+import { MapPin, Briefcase, Star, CheckCircle2, GraduationCap, FileText, Clock, MessageSquare, Banknote } from 'lucide-react';
+import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
-import { lawyerApi, appointmentApi } from '../services/api';
+import { lawyerApi, appointmentApi, availabilityApi } from '../services/api';
 import { getDirectImageUrl } from '../utils/imageUtils';
 
 
@@ -21,6 +22,8 @@ export default function LawyerProfile() {
   const [selectedDate, setSelectedDate] = useState(undefined);
   const [selectedTime, setSelectedTime] = useState('');
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [description, setDescription] = useState('');
+  const [availability, setAvailability] = useState([]);
 
   useEffect(() => {
     const fetchLawyer = async () => {
@@ -48,8 +51,20 @@ export default function LawyerProfile() {
         setIsLoading(false);
       }
     };
-    if (id) fetchLawyer();
+    if (id) {
+      fetchLawyer();
+      fetchAvailability();
+    }
   }, [id]);
+
+  const fetchAvailability = async () => {
+    try {
+      const data = await availabilityApi.getLawyerAvailability(id);
+      setAvailability(data);
+    } catch (err) {
+      console.error('Error fetching availability:', err);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -76,7 +91,47 @@ export default function LawyerProfile() {
     );
   }
 
-  const availableTimeSlots = ['09:00 AM', '10:00 AM', '11:00 AM', '2:00 PM', '3:00 PM', '4:00 PM'];
+  const getAvailableSlotsForDate = (date) => {
+    if (!date) return [];
+    
+    // We need the day of the week. 
+    // Manual extraction avoids the UTC shift bug where 00:00 local becomes 19:00 previous day UTC
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const isoDate = `${year}-${month}-${day}`;
+    
+    const dayOfWeek = new Date(isoDate).getUTCDay();
+    
+    const daySchedule = availability.filter(a => a.dayOfWeek === dayOfWeek);
+    
+    const slots = [];
+    daySchedule.forEach(block => {
+      // Create 1-hour slots between startTime and endTime
+      let start = parseInt(block.startTime.split(':')[0]);
+      let end = parseInt(block.endTime.split(':')[0]);
+      
+      for (let hour = start; hour < end; hour++) {
+        const period = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
+        slots.push(`${displayHour.toString().padStart(2, '0')}:00 ${period}`);
+      }
+    });
+    
+    // Sort slots chronologically
+    return slots.sort((a, b) => {
+      const timeToMinutes = (t) => {
+        const [time, period] = t.split(' ');
+        let [hours, minutes] = time.split(':').map(Number);
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        return hours * 60 + minutes;
+      };
+      return timeToMinutes(a) - timeToMinutes(b);
+    });
+  };
+
+  const availableTimeSlots = getAvailableSlotsForDate(selectedDate);
 
   const handleBookAppointment = async () => {
     const userStr = localStorage.getItem('user');
@@ -92,7 +147,24 @@ export default function LawyerProfile() {
     }
 
     try {
-      await appointmentApi.create({ lawyerId: lawyer.id, date: selectedDate, time: selectedTime });
+      // Convert "09:00 AM" to "09:00:00" for the backend
+      const [timePart, period] = selectedTime.split(' ');
+      let [hours, minutes] = timePart.split(':').map(Number);
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+      const time24 = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateString = `${year}-${month}-${day}`;
+
+      await appointmentApi.create({ 
+        lawyerId: lawyer.id, 
+        date: dateString, 
+        time: time24,
+        legalIssue: description || 'Consultation Request'
+      });
       toast.success('Appointment booked successfully!');
       setIsBookingOpen(false);
       
@@ -154,9 +226,10 @@ export default function LawyerProfile() {
                   </div>
                   
                   <div className="text-right">
-                    <p className="text-3xl font-semibold text-[#1e293b]">
-                      PKR {lawyer.consultationFee.toLocaleString()}
-                    </p>
+                    <div className="flex items-center justify-end gap-2 text-3xl font-semibold text-[#1e293b]">
+                      <Banknote className="w-8 h-8 text-[#a47731]" />
+                      <span>PKR {lawyer.consultationFee.toLocaleString()}</span>
+                    </div>
                     <p className="text-[#64748b]">per hour</p>
                   </div>
                 </div>
@@ -222,6 +295,18 @@ export default function LawyerProfile() {
                         </div>
                       )}
 
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-[#1e293b]">
+                          Briefly describe your legal issue
+                        </label>
+                        <Textarea 
+                          placeholder="e.g., I need help with a property dispute in Lahore..."
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          className="min-h-[100px] border-[#1e293b]/10 focus:border-[#a47731]"
+                        />
+                      </div>
+
                       <Button
                         onClick={handleBookAppointment}
                         disabled={!selectedDate || !selectedTime}
@@ -282,10 +367,29 @@ export default function LawyerProfile() {
                 <Clock className="w-6 h-6 text-[#a47731]" />
               </div>
               <div>
-                <h3 className="font-semibold text-[#1e293b] mb-2">Availability</h3>
-                <p className="text-[#64748b] text-sm">
-                  Monday - Friday: 9:00 AM - 5:00 PM | Saturday: 10:00 AM - 2:00 PM
-                </p>
+                <h3 className="font-semibold text-[#1e293b] mb-2">Office Hours</h3>
+                {availability.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-2 gap-x-4">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => {
+                      const daySlots = availability.filter(a => a.dayOfWeek === idx);
+                      if (daySlots.length === 0) return null;
+                      return (
+                        <div key={day} className="text-sm">
+                          <span className="font-medium text-[#1e293b]">{day}:</span>
+                          <div className="text-[#64748b]">
+                            {daySlots.map((s, i) => (
+                              <div key={i}>{s.startTime.substring(0, 5)} - {s.endTime.substring(0, 5)}</div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[#64748b] text-sm italic">
+                    Schedule not yet configured by the lawyer.
+                  </p>
+                )}
               </div>
             </div>
           </Card>

@@ -61,6 +61,17 @@ export default function AdminPanel() {
     }
   };
 
+  const handleViewDocument = async (lawyerId) => {
+    try {
+      toast.info('Generating secure link...');
+      const { url } = await adminApi.getLicenseUrl(lawyerId);
+      window.open(url, '_blank');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to open document. Ensure it was uploaded correctly.');
+    }
+  };
+
   const handleReject = (lawyerId, name) => {
     toast.error(`${name}'s application has been rejected`);
     setPendingLawyers(prev => prev.filter(l => l.id !== lawyerId));
@@ -243,7 +254,7 @@ export default function AdminPanel() {
                               <Button
                                 variant="link"
                                 className="p-0 h-auto text-[#a47731] hover:text-[#8d6629] text-xs justify-start"
-                                onClick={() => toast.info('Opening license document...')}
+                                onClick={() => handleViewDocument(lawyer.id)}
                               >
                                 View Document →
                               </Button>

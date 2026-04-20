@@ -6,7 +6,7 @@ import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { MapPin, Briefcase, DollarSign, Star, CheckCircle2, Filter, Sparkles, Gavel, Scale } from 'lucide-react';
+import { MapPin, Briefcase, Banknote, Star, CheckCircle2, Filter, Sparkles, Gavel, Scale } from 'lucide-react';
 import { lawyerApi } from '../services/api';
 import { getDirectImageUrl } from '../utils/imageUtils';
 
@@ -38,7 +38,7 @@ export default function SearchResults() {
         verified: l.lawyerProfile?.isVerified || false,
         city: l.lawyerProfile?.city || 'Unknown',
         yearsOfExperience: l.lawyerProfile?.yearsOfExperience || 0,
-        consultationFee: l.lawyerProfile?.consultationFee || 0,
+        consultationFee: l.lawyerProfile?.fees || 0,
         bio: l.lawyerProfile?.bio || '',
       }));
       setAllLawyers(lawyers);
@@ -57,7 +57,7 @@ export default function SearchResults() {
           verified: l.lawyerProfile?.isVerified || false,
           city: l.lawyerProfile?.city || 'Unknown',
           yearsOfExperience: l.lawyerProfile?.yearsOfExperience || 0,
-          consultationFee: l.lawyerProfile?.consultationFee || 0,
+          consultationFee: l.lawyerProfile?.fees || 0,
           bio: l.lawyerProfile?.bio || '',
         }));
         setAllLawyers(lawyers);
@@ -209,9 +209,34 @@ export default function SearchResults() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Cities</SelectItem>
-                      <SelectItem value="Lahore">Lahore</SelectItem>
                       <SelectItem value="Karachi">Karachi</SelectItem>
+                      <SelectItem value="Lahore">Lahore</SelectItem>
                       <SelectItem value="Islamabad">Islamabad</SelectItem>
+                      <SelectItem value="Faisalabad">Faisalabad</SelectItem>
+                      <SelectItem value="Rawalpindi">Rawalpindi</SelectItem>
+                      <SelectItem value="Multan">Multan</SelectItem>
+                      <SelectItem value="Peshawar">Peshawar</SelectItem>
+                      <SelectItem value="Quetta">Quetta</SelectItem>
+                      <SelectItem value="Sialkot">Sialkot</SelectItem>
+                      <SelectItem value="Gujranwala">Gujranwala</SelectItem>
+                      <SelectItem value="Hyderabad">Hyderabad</SelectItem>
+                      <SelectItem value="Abbottabad">Abbottabad</SelectItem>
+                      <SelectItem value="Bahawalpur">Bahawalpur</SelectItem>
+                      <SelectItem value="Sargodha">Sargodha</SelectItem>
+                      <SelectItem value="Sukkur">Sukkur</SelectItem>
+                      <SelectItem value="Jhang">Jhang</SelectItem>
+                      <SelectItem value="Larkana">Larkana</SelectItem>
+                      <SelectItem value="Sheikhupura">Sheikhupura</SelectItem>
+                      <SelectItem value="Rahim Yar Khan">Rahim Yar Khan</SelectItem>
+                      <SelectItem value="Mardan">Mardan</SelectItem>
+                      <SelectItem value="Kasur">Kasur</SelectItem>
+                      <SelectItem value="Sahiwal">Sahiwal</SelectItem>
+                      <SelectItem value="Okara">Okara</SelectItem>
+                      <SelectItem value="Wah Cantt">Wah Cantt</SelectItem>
+                      <SelectItem value="Dera Ghazi Khan">Dera Ghazi Khan</SelectItem>
+                      <SelectItem value="Mirpur Khas">Mirpur Khas</SelectItem>
+                      <SelectItem value="Nawabshah">Nawabshah</SelectItem>
+                      <SelectItem value="Chiniot">Chiniot</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -298,7 +323,7 @@ export default function SearchResults() {
                           <span className="text-sm">{lawyer.yearsOfExperience} years exp.</span>
                         </div>
                         <div className="flex items-center gap-2 text-[#1e293b] font-semibold">
-                          <DollarSign className="w-4 h-4" />
+                          <Banknote className="w-4 h-4 text-[#a47731]" />
                           <span className="text-sm">PKR {lawyer.consultationFee.toLocaleString()}/hr</span>
                         </div>
                       </div>

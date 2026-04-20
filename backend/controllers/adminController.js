@@ -103,7 +103,33 @@ const verifyLawyer = async (req, res) => {
   }
 };
 
+const getLicenseUrl = async (req, res) => {
+  try {
+    const { lawyerId } = req.params;
+    const { getSignedUrl } = require('../utils/storageUtils');
+
+    const { data: profile, error } = await supabase
+      .from('LawyerProfile')
+      .select('barLicenseFile')
+      .eq('userId', lawyerId)
+      .single();
+
+    if (error || !profile?.barLicenseFile) {
+      return res.status(404).json({ message: 'License file not found' });
+    }
+
+    // Generate signed URL (expires in 5 minutes)
+    const signedUrl = await getSignedUrl('bar-licenses', profile.barLicenseFile);
+    
+    res.status(200).json({ url: signedUrl });
+  } catch (error) {
+    console.error('Error getting license URL:', error);
+    res.status(500).json({ message: 'Server error getting license URL' });
+  }
+};
+
 module.exports = {
   adminDashboard,
-  verifyLawyer
+  verifyLawyer,
+  getLicenseUrl
 };

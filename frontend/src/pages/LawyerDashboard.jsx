@@ -6,12 +6,14 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
-import { Input } from '../components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Calendar, Clock, CheckCircle, XCircle, Upload, FileText, User } from 'lucide-react';
+import { Input } from '../components/ui/input';
+import { Calendar, Clock, CheckCircle, XCircle, Upload, FileText, User, Eye, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { lawyerApi, appointmentApi } from '../services/api';
+import { lawyerApi, appointmentApi, availabilityApi } from '../services/api';
+import ManageAvailability from '../components/ManageAvailability';
 
 export default function LawyerDashboard() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -33,19 +35,32 @@ export default function LawyerDashboard() {
             consultationFee: profileData.lawyerProfile?.fees || 0,
             verified: profileData.lawyerProfile?.isVerified || false,
             rating: profileData.lawyerProfile?.rating || 4.8,
+            education: profileData.lawyerProfile?.education || '',
+            barLicenseNumber: profileData.lawyerProfile?.barLicenseNumber || '',
+            barLicenseFile: profileData.lawyerProfile?.barLicenseFile || null,
+            city: profileData.lawyerProfile?.city || '',
           };
           setLawyerProfile(formattedProfile);
         }
 
         const apts = await appointmentApi.getMyAppointments();
-        const mappedApts = apts.map((apt) => ({
-          id: apt.id.toString(),
-          clientName: apt.client?.name || 'Unknown',
-          legalIssue: 'Consultation Request',
-          date: new Date(apt.date).toLocaleDateString(),
-          time: apt.time,
-          status: apt.status.toLowerCase(),
-        }));
+        const mappedApts = apts.map((apt) => {
+          // Format time from "09:00:00" to "09:00 AM"
+          const [h, m] = apt.time.split(':');
+          const hr = parseInt(h);
+          const period = hr >= 12 ? 'PM' : 'AM';
+          const displayHr = hr > 12 ? hr - 12 : (hr === 0 ? 12 : hr);
+          const formattedTime = `${displayHr.toString().padStart(2, '0')}:${m} ${period}`;
+
+          return {
+            id: apt.id.toString(),
+            clientName: apt.client?.name || 'Unknown',
+            legalIssue: apt.legalIssue || 'Consultation Request',
+            date: new Date(apt.date).toLocaleDateString(),
+            time: formattedTime,
+            status: apt.status.toLowerCase(),
+          };
+        });
         setLawyerAppointments(mappedApts);
       } catch (err) {
         console.error(err);
@@ -66,10 +81,24 @@ export default function LawyerDashboard() {
     }
   };
 
-  const handleUploadLicense = () => {
-    if (selectedFile) {
+  const handleUploadLicense = async () => {
+    if (!selectedFile) return;
+    
+    const formData = new FormData();
+    formData.append('barLicenseFile', selectedFile);
+    // Append other existing fields to avoid clearing them if the backend expects them
+    formData.append('specialization', lawyerProfile.specialization);
+    formData.append('fees', lawyerProfile.consultationFee);
+    formData.append('city', lawyerProfile.city);
+
+    try {
+      await lawyerApi.updateLawyerProfile(formData);
       toast.success('License uploaded successfully and sent for verification');
       setSelectedFile(null);
+      // Refresh data
+      setLawyerProfile(prev => ({ ...prev, barLicenseFile: 'uploaded' }));
+    } catch (err) {
+      toast.error('Failed to upload license');
     }
   };
 
@@ -92,6 +121,63 @@ export default function LawyerDashboard() {
       toast.error('Failed to decline');
     }
   };
+
+  const handleProfileUpdate = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('specialization', e.target.specialization.value);
+    formData.append('fees', e.target.fee.value);
+    formData.append('bio', e.target.bio.value);
+    formData.append('education', e.target.education.value);
+    formData.append('barLicenseNumber', e.target.barLicenseNumber.value);
+    formData.append('city', lawyerProfile.city); // From state since it's a Select now
+    
+    if (e.target.profilePhoto.files[0]) {
+      formData.append('profilePhoto', e.target.profilePhoto.files[0]);
+    }
+
+    try {
+      const response = await lawyerApi.updateLawyerProfile(formData);
+      toast.success('Profile updated successfully');
+      
+      // Update local state
+      const updated = response || {}; // Backend returns updated profile
+      setLawyerProfile(prev => ({
+        ...prev,
+        specialization: updated.specialization,
+        consultationFee: updated.fees,
+        bio: updated.bio,
+        education: updated.education,
+        barLicenseNumber: updated.barLicenseNumber,
+        city: updated.city
+      }));
+    } catch (err) {
+      toast.error('Failed to update profile');
+    }
+  };
+
+  const handleViewMyLicense = async () => {
+    try {
+      const userStr = localStorage.getItem('user');
+      const user = JSON.parse(userStr);
+      const response = await fetch(`http://localhost:5000/api/admin/license/${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        }
+      });
+      const { url } = await response.json();
+      window.open(url, '_blank');
+    } catch (err) {
+      toast.error('Failed to open document');
+    }
+  };
+
+  const pakistaniCities = [
+    "Karachi", "Lahore", "Islamabad", "Faisalabad", "Rawalpindi", "Multan", "Peshawar", "Quetta", 
+    "Sialkot", "Gujranwala", "Hyderabad", "Abbottabad", "Bahawalpur", "Sargodha", "Sukkur", 
+    "Jhang", "Larkana", "Sheikhupura", "Rahim Yar Khan", "Mardan", "Kasur", "Sahiwal", 
+    "Okara", "Wah Cantt", "Dera Ghazi Khan", "Mirpur Khas", "Nawabshah", "Chiniot"
+  ];
 
   const getStatusBadge = (status) => {
     const styles = {
@@ -211,6 +297,7 @@ export default function LawyerDashboard() {
           <Tabs defaultValue="appointments" className="space-y-6">
             <TabsList className="bg-white border border-[#1e293b]/10">
               <TabsTrigger value="appointments">Appointment Requests</TabsTrigger>
+              <TabsTrigger value="schedule">Manage Schedule</TabsTrigger>
               <TabsTrigger value="profile">Profile Management</TabsTrigger>
             </TabsList>
 
@@ -301,6 +388,11 @@ export default function LawyerDashboard() {
                 </div>
               </Card>
             </TabsContent>
+            
+            {/* Manage Schedule Tab */}
+            <TabsContent value="schedule">
+              <ManageAvailability />
+            </TabsContent>
 
             {/* Profile Management Tab */}
             <TabsContent value="profile">
@@ -349,7 +441,7 @@ export default function LawyerDashboard() {
                       Upload for Verification
                     </Button>
 
-                    {lawyerProfile?.verified && (
+                    {lawyerProfile?.verified ? (
                       <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center gap-2 text-green-700">
                           <CheckCircle className="w-5 h-5" />
@@ -357,6 +449,34 @@ export default function LawyerDashboard() {
                         </div>
                         <p className="text-sm text-green-600 mt-1">
                           Your Bar Council license has been verified by pLawo
+                        </p>
+                      </div>
+                    ) : lawyerProfile?.barLicenseFile ? (
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-2 text-blue-700">
+                          <AlertCircle className="w-5 h-5" />
+                          <span className="font-medium">Verification Pending</span>
+                        </div>
+                        <p className="text-sm text-blue-600 mt-1 flex items-center justify-between">
+                          Your document is being reviewed by our team
+                          <Button 
+                            variant="link" 
+                            size="sm" 
+                            onClick={handleViewMyLicense}
+                            className="text-blue-700 p-0 h-auto font-semibold"
+                          >
+                            <Eye className="w-3 h-3 mr-1" /> View Submitted
+                          </Button>
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <div className="flex items-center gap-2 text-yellow-700">
+                          <AlertCircle className="w-5 h-5" />
+                          <span className="font-medium">License Required</span>
+                        </div>
+                        <p className="text-sm text-yellow-600 mt-1">
+                          Please upload your Bar Council license to be listed for clients
                         </p>
                       </div>
                     )}
@@ -379,22 +499,74 @@ export default function LawyerDashboard() {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <form onSubmit={handleProfileUpdate} className="space-y-4">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="specialization">Specialization</Label>
+                        <Input
+                          id="specialization"
+                          name="specialization"
+                          defaultValue={lawyerProfile?.specialization}
+                          className="mt-2 border-[#1e293b]/20"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="city">City</Label>
+                        <Select 
+                          value={lawyerProfile?.city} 
+                          onValueChange={(val) => setLawyerProfile(prev => ({ ...prev, city: val }))}
+                        >
+                          <SelectTrigger className="mt-2 border-[#1e293b]/20">
+                            <SelectValue placeholder="Select city" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {pakistaniCities.map(city => (
+                              <SelectItem key={city} value={city}>{city}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="fee">Consultation Fee (PKR/hour)</Label>
+                        <Input
+                          id="fee"
+                          name="fee"
+                          type="number"
+                          defaultValue={lawyerProfile?.consultationFee}
+                          className="mt-2 border-[#1e293b]/20"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="barLicenseNumber">Bar License Number</Label>
+                        <Input
+                          id="barLicenseNumber"
+                          name="barLicenseNumber"
+                          defaultValue={lawyerProfile?.barLicenseNumber}
+                          className="mt-2 border-[#1e293b]/20"
+                        />
+                      </div>
+                    </div>
+
                     <div>
-                      <Label htmlFor="specialization">Specialization</Label>
+                      <Label htmlFor="profilePhoto">Update Profile Photo</Label>
                       <Input
-                        id="specialization"
-                        defaultValue={lawyerProfile?.specialization}
+                        id="profilePhoto"
+                        name="profilePhoto"
+                        type="file"
+                        accept="image/*"
                         className="mt-2 border-[#1e293b]/20"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="fee">Consultation Fee (PKR/hour)</Label>
+                      <Label htmlFor="education">Education</Label>
                       <Input
-                        id="fee"
-                        type="number"
-                        defaultValue={lawyerProfile?.consultationFee}
+                        id="education"
+                        name="education"
+                        defaultValue={lawyerProfile?.education}
                         className="mt-2 border-[#1e293b]/20"
                       />
                     </div>
@@ -403,15 +575,16 @@ export default function LawyerDashboard() {
                       <Label htmlFor="bio">Biography</Label>
                       <Textarea
                         id="bio"
+                        name="bio"
                         defaultValue={lawyerProfile?.bio}
                         className="mt-2 min-h-[120px] border-[#1e293b]/20"
                       />
                     </div>
 
-                    <Button className="w-full bg-[#a47731] hover:bg-[#8d6629] text-white">
+                    <Button type="submit" className="w-full bg-[#a47731] hover:bg-[#8d6629] text-white">
                       Save Changes
                     </Button>
-                  </div>
+                  </form>
                 </Card>
               </div>
             </TabsContent>
