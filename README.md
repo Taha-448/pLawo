@@ -62,10 +62,9 @@ pLawo/
 │   ├── config/             # Supabase & DB connections
 │   ├── controllers/        # Business logic for routes
 │   ├── routes/             # API endpoint definitions
-│   ├── middlewares/        # Auth & Role-based access control
+│   ├── middlewares/        # Auth, Multer, & RBAC (Consolidated)
 │   ├── services/           # AI analysis logic
-│   ├── seedLawyers.js      # Mock data seeding
-│   ├── seedAuthAdmin.js    # Admin creation script
+│   ├── scripts/            # Database seeding & utility scripts
 │   └── .env                # Backend secrets (API Keys, DB URLs)
 └── .gitignore              # Unified ignore rules
 ```
@@ -127,12 +126,13 @@ pLawo/
 
 ### Seeding Data
 To populate the platform with initial data, run these commands in the `backend/` directory:
-- `node seedLawyers.js` (Populates mock lawyers)
-- `node seedAuthAdmin.js` (Creates the default admin: `admin@demo.com` / `password123`)
+- `node scripts/seedLawyers.js` (Populates mock lawyers)
+- `node scripts/seedAuthAdmin.js` (Creates the default admin: `admin@demo.com` / `password123`)
 
 ---
 
 ## 🛡️ Security
+- **Email Confirmation**: Supabase Auth integration requiring verified email activation.
 - **JWT Protection**: All sensitive routes are protected by Supabase Auth tokens.
 - **RBAC**: Middleware ensures only authorized roles (ADMIN, LAWYER) can access specific endpoints.
 - **Private Storage**: Bar Council Licenses are stored in private buckets and only accessible to admins via temporary signed URLs.
@@ -142,10 +142,10 @@ To populate the platform with initial data, run these commands in the `backend/`
 
 ## ✨ Key Features
 - ✅ **AI Legal Classifier**: Maps user queries to specific Pakistani Legal Acts.
-- ✅ **25+ Cities Support**: From Karachi to small towns like Chiniot.
-- ✅ **PKR Localization**: Professional fee displays without redundant currency symbols.
-- ✅ **Appointment Life Cycle**: Pending -> Confirmed -> Completed.
-- ✅ **Secure Admin Panel**: High-level overview and verification queue.
+- ✅ **Omniscient Admin Dashboard**: Live revenue tracking and global appointment activity.
+- ✅ **Hardened Review System**: Prevents duplicate reviews and ensures database-accurate ratings.
+- ✅ **Professional Local Context**: 25+ cities supported with PKR localization.
+- ✅ **Automatic Availability**: Dynamic 1-hour slot generation with conflict prevention.
 
 ---
 
