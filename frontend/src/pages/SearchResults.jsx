@@ -32,14 +32,14 @@ export default function SearchResults() {
       const lawyers = apiResult.lawyers.map((l) => ({
         id: l.id,
         fullName: l.name,
-        profilePhoto: getDirectImageUrl(l.lawyerProfile?.profilePhoto || 'https://images.unsplash.com/photo-1560250097-0b93528c311a'),
-        specialization: l.lawyerProfile?.specialization || 'General Practice',
-        rating: l.lawyerProfile?.rating || 4.5,
-        verified: l.lawyerProfile?.isVerified || false,
-        city: l.lawyerProfile?.city || 'Unknown',
-        yearsOfExperience: l.lawyerProfile?.yearsOfExperience || 0,
-        consultationFee: l.lawyerProfile?.fees || 0,
-        bio: l.lawyerProfile?.bio || '',
+        profilePhoto: getDirectImageUrl(l.lawyer_profile?.profile_photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a'),
+        specialization: l.lawyer_profile?.specialization || 'General Practice',
+        rating: l.lawyer_profile?.rating || 0.0,
+        verified: l.lawyer_profile?.is_verified || false,
+        city: l.lawyer_profile?.city || 'Unknown',
+        yearsOfExperience: l.lawyer_profile?.years_of_experience || 0,
+        consultationFee: l.lawyer_profile?.fees || 0,
+        bio: l.lawyer_profile?.bio || '',
       }));
       setAllLawyers(lawyers);
       setIsLoading(false);
@@ -51,14 +51,14 @@ export default function SearchResults() {
         const lawyers = lawyersList.map((l) => ({
           id: l.id,
           fullName: l.name,
-          profilePhoto: getDirectImageUrl(l.lawyerProfile?.profilePhoto || 'https://images.unsplash.com/photo-1560250097-0b93528c311a'),
-          specialization: l.lawyerProfile?.specialization || 'General Practice',
-          rating: l.lawyerProfile?.rating || 4.5,
-          verified: l.lawyerProfile?.isVerified || false,
-          city: l.lawyerProfile?.city || 'Unknown',
-          yearsOfExperience: l.lawyerProfile?.yearsOfExperience || 0,
-          consultationFee: l.lawyerProfile?.fees || 0,
-          bio: l.lawyerProfile?.bio || '',
+          profilePhoto: getDirectImageUrl(l.lawyer_profile?.profile_photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a'),
+          specialization: l.lawyer_profile?.specialization || 'General Practice',
+          rating: l.lawyer_profile?.rating || 0.0,
+          verified: l.lawyer_profile?.is_verified || false,
+          city: l.lawyer_profile?.city || 'Unknown',
+          yearsOfExperience: l.lawyer_profile?.years_of_experience || 0,
+          consultationFee: l.lawyer_profile?.fees || 0,
+          bio: l.lawyer_profile?.bio || '',
         }));
         setAllLawyers(lawyers);
 
@@ -308,8 +308,10 @@ export default function SearchResults() {
                           <p className="text-[#a47731] font-medium">{lawyer.specialization}</p>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Star className="w-5 h-5 fill-[#a47731] text-[#a47731]" />
-                          <span className="font-semibold text-[#1e293b]">{lawyer.rating}</span>
+                          <Star className={`w-5 h-5 ${parseFloat(lawyer.rating) > 0 ? 'fill-[#a47731] text-[#a47731]' : 'text-[#cbd5e1]'}`} />
+                          <span className="font-semibold text-[#1e293b]">
+                            {parseFloat(lawyer.rating) > 0 ? lawyer.rating : 'New'}
+                          </span>
                         </div>
                       </div>
 

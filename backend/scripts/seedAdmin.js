@@ -2,7 +2,7 @@ const { supabase } = require('./config/supabase');
 
 async function run() {
   const { data, error } = await supabase
-    .from('User')
+    .from('users')
     .upsert(
       {
         email: 'admin@demo.com',

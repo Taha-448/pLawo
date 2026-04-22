@@ -25,10 +25,13 @@ export default function SignUp() {
     yearsOfExperience: '',
     education: '',
     barLicenseNumber: '',
+    officeAddress: '',
   });
 
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [profilePhoto, setProfilePhoto] = useState(null);
+  const [barLicenseFile, setBarLicenseFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -38,8 +41,10 @@ export default function SignUp() {
   };
 
   const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+    const { name, files } = e.target;
+    if (files && files[0]) {
+      if (name === 'profilePhoto') setProfilePhoto(files[0]);
+      if (name === 'barLicenseFile') setBarLicenseFile(files[0]);
     }
   };
 
@@ -78,8 +83,8 @@ export default function SignUp() {
 
       // 2. If Lawyer, we need to save the extra profile info to the backend
       if (role === 'lawyer') {
-        if (!formData.city || !formData.specialization) {
-          toast.error("Please fill in City and Specialization");
+        if (!formData.city || !formData.specialization || !barLicenseFile || !formData.officeAddress) {
+          toast.error("Please fill in all fields and upload your Bar License");
           setIsSubmitting(false);
           return;
         }
@@ -95,20 +100,20 @@ export default function SignUp() {
         profileForm.append('yearsOfExperience', formData.yearsOfExperience);
         profileForm.append('education', formData.education);
         profileForm.append('barLicenseNumber', formData.barLicenseNumber);
+        profileForm.append('officeAddress', formData.officeAddress);
         
-        if (selectedFile) {
-          profileForm.append('profilePhoto', selectedFile);
+        if (profilePhoto) {
+          profileForm.append('profilePhoto', profilePhoto);
+        }
+        if (barLicenseFile) {
+          profileForm.append('barLicenseFile', barLicenseFile);
         }
 
-        // We'll call a backend endpoint specifically for completing the profile
-        // Since the user is already in public."User" via trigger, we just add LawyerProfile
-        // We'll call a backend endpoint specifically for completing the profile
-        // Since the user is already in public."User" via trigger, we just add LawyerProfile
         await authApi.completeLawyerProfile(profileForm);
       }
       
-      toast.success('Account created successfully!');
-      navigate('/signin');
+      toast.success('Registration initiated!');
+      setIsSubmitted(true);
     } catch (err) {
       console.error("Signup Error:", err);
       toast.error(err.message || 'Registration failed');
@@ -116,6 +121,37 @@ export default function SignUp() {
       setIsSubmitting(false);
     }
   };
+
+  if (isSubmitted) {
+    return (
+      <div className="min-h-screen bg-[#FDFDFD] flex items-center justify-center px-4 py-12">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md"
+        >
+          <Card className="p-10 bg-white border-[#1e293b]/10 text-center">
+            <div className="w-20 h-20 rounded-full bg-[#a47731]/10 flex items-center justify-center mx-auto mb-6">
+              <Scale className="w-10 h-10 text-[#a47731]" />
+            </div>
+            <h2 className="text-3xl font-['Playfair_Display'] text-[#1e293b] mb-4">
+              Check Your Email
+            </h2>
+            <p className="text-[#64748b] leading-relaxed mb-8">
+              We've sent a verification link to <span className="font-semibold text-[#1e293b]">{formData.email}</span>. 
+              Please click the link to activate your account and access pLawo.
+            </p>
+            <Button 
+              className="w-full bg-[#a47731] hover:bg-[#8d6629] text-white"
+              onClick={() => navigate('/signin')}
+            >
+              Return to Sign In
+            </Button>
+          </Card>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] flex items-center justify-center px-4 py-12">
@@ -224,10 +260,17 @@ export default function SignUp() {
                   <Label htmlFor="education">Education</Label>
                   <Input id="education" name="education" type="text" placeholder="e.g. LLB, LLM" value={formData.education} onChange={handleInputChange} required />
                 </div>
-                <div className="col-span-2">
+                <div className="col-span-2 sm:col-span-1">
                   <Label htmlFor="profilePhoto">Profile Photo</Label>
                   <Input id="profilePhoto" name="profilePhoto" type="file" accept="image/*" onChange={handleFileChange} />
-                  <p className="text-[10px] text-[#64748b] mt-1 italic">* Recommended: Square aspect ratio (1:1)</p>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Label htmlFor="barLicenseFile">Bar License (PDF/Image)</Label>
+                  <Input id="barLicenseFile" name="barLicenseFile" type="file" accept="image/*,application/pdf" onChange={handleFileChange} required />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="officeAddress">Office Address</Label>
+                  <Input id="officeAddress" name="officeAddress" type="text" placeholder="e.g. Office #12, 3rd Floor, Liberty Plaza, Lahore" value={formData.officeAddress} onChange={handleInputChange} required />
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor="bio">About / Bio</Label>

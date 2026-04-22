@@ -13,15 +13,27 @@ const smartSearch = async (req, res) => {
     const aiResult = await getLegalCategory(description);
     const category = aiResult.category;
 
-    // 2. Query Supabase for Verified Lawyers with this specialization
+    // 2. Query Supabase for Verified Lawyers
+    const keywords = aiResult.searchKeywords || [];
+    
     let query = supabase
-      .from('User')
-      .select('id, name, email, lawyerProfile:LawyerProfile!inner(*)')
+      .from('users')
+      .select('id, name, email, lawyer_profile:lawyer_profiles!inner(*)')
       .eq('role', 'LAWYER')
-      .eq('LawyerProfile.isVerified', true);
+      .eq('lawyer_profiles.is_verified', true);
 
     if (category && category !== "Other") {
-      query = query.ilike('LawyerProfile.specialization', `%${category}%`);
+      const orConditions = [
+        `specialization.ilike.%${category}%`,
+        `bio.ilike.%${category}%`
+      ];
+      
+      keywords.forEach(kw => {
+        orConditions.push(`specialization.ilike.%${kw}%`);
+        orConditions.push(`bio.ilike.%${kw}%`);
+      });
+
+      query = query.or(orConditions.join(','), { foreignTable: 'lawyer_profiles' });
     }
 
     const { data: matchingLawyers, error } = await query;

@@ -36,9 +36,9 @@ export default function SignIn() {
       const user = data.user;
       if (!user) throw new Error('Login failed: No user data returned');
 
-      // 2. Fetch role from public.User table
+      // 2. Fetch role from public.users table
       const { data: dbUser, error: roleError } = await supabase
-        .from('User')
+        .from('users')
         .select('role, name')
         .eq('id', user.id)
         .maybeSingle(); // Use maybeSingle to avoid 406 if profile doesn't exist yet

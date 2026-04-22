@@ -26,10 +26,6 @@ export const getDirectImageUrl = (url) => {
     return `https://drive.google.com/uc?export=view&id=${fileId}`;
   }
 
-  // Handle local server uploads
-  if (url.startsWith('/uploads/')) {
-    return `http://localhost:5000${url}`;
-  }
 
   return url;
 };

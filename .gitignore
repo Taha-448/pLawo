@@ -17,9 +17,6 @@ out/
 .next/
 /frontend/dist/
 
-# Backend uploads
-/backend/public/uploads/*
-!/backend/public/uploads/.gitkeep
 
 # IDE and Editor files
 .vscode/*

@@ -36,9 +36,9 @@ export default function ManageAvailability() {
 
   const handleAddSlot = (dayIndex) => {
     setAvailability([...availability, {
-      dayOfWeek: dayIndex,
-      startTime: '09:00:00',
-      endTime: '17:00:00'
+      day_of_week: dayIndex,
+      start_time: '09:00:00',
+      end_time: '17:00:00'
     }]);
   };
 
@@ -85,7 +85,7 @@ export default function ManageAvailability() {
 
         <div className="p-6 space-y-8">
           {DAYS.map((day, dayIndex) => {
-            const daySlots = availability.filter(slot => slot.dayOfWeek === dayIndex);
+            const daySlots = availability.filter(slot => slot.day_of_week === dayIndex);
             
             return (
               <div key={day} className="space-y-4">
@@ -110,7 +110,7 @@ export default function ManageAvailability() {
                 ) : (
                   <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {availability.map((slot, globalIndex) => {
-                      if (slot.dayOfWeek !== dayIndex) return null;
+                      if (slot.day_of_week !== dayIndex) return null;
                       
                       return (
                         <div key={globalIndex} className="flex items-center gap-3 p-3 bg-[#f8fafc] rounded-lg border border-[#1e293b]/5">
@@ -119,8 +119,8 @@ export default function ManageAvailability() {
                               <Label className="text-[10px] uppercase text-[#64748b]">From</Label>
                               <Input 
                                 type="time" 
-                                value={slot.startTime.substring(0, 5)} 
-                                onChange={(e) => handleTimeChange(globalIndex, 'startTime', e.target.value)}
+                                value={slot.start_time.substring(0, 5)} 
+                                onChange={(e) => handleTimeChange(globalIndex, 'start_time', e.target.value)}
                                 className="h-8 text-xs border-[#1e293b]/10"
                               />
                             </div>
@@ -128,8 +128,8 @@ export default function ManageAvailability() {
                               <Label className="text-[10px] uppercase text-[#64748b] pl-1">To</Label>
                               <Input 
                                 type="time" 
-                                value={slot.endTime.substring(0, 5)} 
-                                onChange={(e) => handleTimeChange(globalIndex, 'endTime', e.target.value)}
+                                value={slot.end_time.substring(0, 5)} 
+                                onChange={(e) => handleTimeChange(globalIndex, 'end_time', e.target.value)}
                                 className="h-8 text-xs border-[#1e293b]/10"
                               />
                             </div>

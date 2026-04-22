@@ -27,8 +27,6 @@ app.use(cors({
 
 app.use(express.json());
 
-// Serve static files from the public/uploads directory
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
@@ -37,6 +35,7 @@ const searchRoutes = require('./routes/searchRoutes');
 const lawyerRoutes = require('./routes/lawyerRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const availabilityRoutes = require('./routes/availabilityRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
@@ -44,6 +43,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/lawyers', lawyerRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/availability', availabilityRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {

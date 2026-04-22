@@ -89,6 +89,11 @@ export const appointmentApi = {
     if (!response.ok) throw new Error('Failed to fetch appointments');
     return response.json();
   },
+  getBookedSlots: async (lawyerId) => {
+    const response = await fetch(`${API_URL}/appointments/lawyer/${lawyerId}`);
+    if (!response.ok) throw new Error('Failed to fetch booked slots');
+    return response.json();
+  },
   updateStatus: async (id, status) => {
     const response = await fetch(`${API_URL}/appointments/${id}/status`, {
       method: 'PUT',
@@ -139,6 +144,26 @@ export const availabilityApi = {
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || 'Failed to update availability');
     }
+    return response.json();
+  }
+};
+
+export const reviewApi = {
+  create: async (data) => {
+    const response = await fetch(`${API_URL}/reviews`, {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to submit review');
+    }
+    return response.json();
+  },
+  getLawyerReviews: async (lawyerId) => {
+    const response = await fetch(`${API_URL}/reviews/lawyer/${lawyerId}`);
+    if (!response.ok) throw new Error('Failed to fetch reviews');
     return response.json();
   }
 };

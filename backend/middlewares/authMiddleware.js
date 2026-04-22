@@ -16,9 +16,9 @@ const authenticateUser = async (req, res, next) => {
       return res.status(401).json({ message: 'Authentication invalid' });
     }
 
-    // 2. Fetch role from our public.User table
+    // 2. Fetch role from our public.users table
     const { data: dbUser, error: dbError } = await supabase
-      .from('User')
+      .from('users')
       .select('role')
       .eq('id', user.id)
       .single();

@@ -33,12 +33,14 @@ const getLegalCategory = async (problemDescription) => {
     1. Categorize it into EXACTLY ONE of: ["Family Law", "Criminal Law", "Corporate Law", "Property Law", "Human Rights Law", "Tax Law", "Other"].
     2. Provide a 2-3 sentence empathetic summary of the legal situation from a Pakistani perspective.
     3. List 1-3 specific Pakistani laws, acts, or ordinances that are relevant.
+    4. Provide 3-5 search keywords that would help find the right lawyer (e.g., if it's a murder case, include "murder", "criminal", "homicide", "bail").
 
     Response Format (STRICT JSON):
     {
       "category": "String",
       "analysis": "String",
-      "applicableLaws": ["String"]
+      "applicableLaws": ["String"],
+      "searchKeywords": ["String"]
     }
     `;
 

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '../components/ui/textarea';
 import { Calendar, Clock, MapPin, Star, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
-import { appointmentApi } from '../services/api';
+import { appointmentApi, reviewApi } from '../services/api';
 
 export default function ClientDashboard() {
   const navigate = useNavigate();
@@ -38,11 +38,11 @@ export default function ClientDashboard() {
           return {
             id: apt.id.toString(),
             lawyerName: apt.lawyer?.name || 'Unknown',
-            legalIssue: apt.legalIssue || 'Consultation Request',
+            legalIssue: apt.legal_issue || 'Consultation Request',
             date: new Date(apt.date).toLocaleDateString(),
             time: formattedTime,
             status: apt.status.toLowerCase(),
-            review: null
+            review: apt.review && apt.review.length > 0 ? apt.review[0] : (apt.reviews && apt.reviews.length > 0 ? apt.reviews[0] : null)
           };
         });
         setUserAppointments(mapped);
@@ -50,15 +50,33 @@ export default function ClientDashboard() {
       .catch(err => console.error(err));
   }, []);
 
-  const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
     if (rating === 0) {
       toast.error('Please select a rating');
       return;
     }
-    toast.success('Review submitted successfully!');
-    setReviewDialogOpen(false);
-    setRating(0);
-    setReview('');
+    
+    try {
+      await reviewApi.create({
+        appointmentId: selectedAppointment,
+        rating,
+        comment: review
+      });
+      
+      toast.success('Review submitted successfully!');
+      setReviewDialogOpen(false);
+      setRating(0);
+      setReview('');
+      
+      // Update local state to show review is done
+      setUserAppointments(prev => prev.map(apt => 
+        apt.id === selectedAppointment 
+          ? { ...apt, review: { rating, comment: review } } 
+          : apt
+      ));
+    } catch (err) {
+      toast.error(err.message || 'Failed to submit review');
+    }
   };
 
   const getStatusBadge = (status) => {

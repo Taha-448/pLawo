@@ -106,19 +106,22 @@ pLawo/
     cd pLawo
     ```
 
-2.  **Backend Setup**:
+2.  **Review Requirements**:
+    Check the [requirements.txt](requirements.txt) file in the root directory for a full list of dependencies and system requirements.
+
+3.  **Backend Setup**:
     ```bash
     cd backend
     npm install
-    # Create .env with: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, JWT_SECRET
+    # Set up your .env file with backend secrets
     npm run dev
     ```
 
-3.  **Frontend Setup**:
+4.  **Frontend Setup**:
     ```bash
     cd ../frontend
     npm install
-    # Create .env with: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+    # Set up your .env file with frontend keys
     npm run dev
     ```
 

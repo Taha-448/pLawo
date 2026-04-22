@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { MapPin, Briefcase, Star, CheckCircle2, GraduationCap, FileText, Clock, MessageSquare, Banknote } from 'lucide-react';
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
-import { lawyerApi, appointmentApi, availabilityApi } from '../services/api';
+import { lawyerApi, appointmentApi, availabilityApi, reviewApi } from '../services/api';
 import { getDirectImageUrl } from '../utils/imageUtils';
 
 
@@ -24,6 +24,8 @@ export default function LawyerProfile() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [description, setDescription] = useState('');
   const [availability, setAvailability] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [bookedSlots, setBookedSlots] = useState([]);
 
   useEffect(() => {
     const fetchLawyer = async () => {
@@ -32,17 +34,18 @@ export default function LawyerProfile() {
         const formatted = {
           id: data.id,
           fullName: data.name,
-          profilePhoto: getDirectImageUrl(data.lawyerProfile?.profilePhoto || 'https://images.unsplash.com/photo-1560250097-0b93528c311a'),
+          profilePhoto: getDirectImageUrl(data.lawyer_profile?.profile_photo || 'https://images.unsplash.com/photo-1560250097-0b93528c311a'),
 
-          specialization: data.lawyerProfile?.specialization || 'General Practice',
-          city: data.lawyerProfile?.city || 'Unknown',
-          bio: data.lawyerProfile?.bio || '',
-          consultationFee: data.lawyerProfile?.fees || 0,
-          verified: data.lawyerProfile?.isVerified || false,
-          rating: data.lawyerProfile?.rating || 4.8,
-          yearsOfExperience: data.lawyerProfile?.yearsOfExperience || 5,
-          education: data.lawyerProfile?.education || "Not specified",
-          barLicenseNumber: data.lawyerProfile?.barLicenseNumber || "Not specified"
+          specialization: data.lawyer_profile?.specialization || 'General Practice',
+          city: data.lawyer_profile?.city || 'Unknown',
+          bio: data.lawyer_profile?.bio || '',
+          consultationFee: data.lawyer_profile?.fees || 0,
+          verified: data.lawyer_profile?.is_verified || false,
+          rating: data.lawyer_profile?.rating || 4.8,
+          yearsOfExperience: data.lawyer_profile?.years_of_experience || 5,
+          education: data.lawyer_profile?.education || "Not specified",
+          barLicenseNumber: data.lawyer_profile?.bar_license_number || "Not specified",
+          officeAddress: data.lawyer_profile?.office_address || "Not specified"
         };
         setLawyer(formatted);
       } catch (err) {
@@ -54,8 +57,28 @@ export default function LawyerProfile() {
     if (id) {
       fetchLawyer();
       fetchAvailability();
+      fetchReviews();
+      fetchBookedSlots();
     }
   }, [id]);
+
+  const fetchReviews = async () => {
+    try {
+      const data = await reviewApi.getLawyerReviews(id);
+      setReviews(data);
+    } catch (err) {
+      console.error('Error fetching reviews:', err);
+    }
+  };
+
+  const fetchBookedSlots = async () => {
+    try {
+      const data = await appointmentApi.getBookedSlots(id);
+      setBookedSlots(data);
+    } catch (err) {
+      console.error('Error fetching booked slots:', err);
+    }
+  };
 
   const fetchAvailability = async () => {
     try {
@@ -103,13 +126,13 @@ export default function LawyerProfile() {
     
     const dayOfWeek = new Date(isoDate).getUTCDay();
     
-    const daySchedule = availability.filter(a => a.dayOfWeek === dayOfWeek);
+    const daySchedule = availability.filter(a => a.day_of_week === dayOfWeek);
     
     const slots = [];
     daySchedule.forEach(block => {
       // Create 1-hour slots between startTime and endTime
-      let start = parseInt(block.startTime.split(':')[0]);
-      let end = parseInt(block.endTime.split(':')[0]);
+      let start = parseInt(block.start_time.split(':')[0]);
+      let end = parseInt(block.end_time.split(':')[0]);
       
       for (let hour = start; hour < end; hour++) {
         const period = hour >= 12 ? 'PM' : 'AM';
@@ -118,8 +141,41 @@ export default function LawyerProfile() {
       }
     });
     
+    // If selecting TODAY, filter out slots that have already passed
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    
+    let filteredSlots = slots;
+    if (isToday) {
+      filteredSlots = slots.filter(slot => {
+        const [time, period] = slot.split(' ');
+        let [hours] = time.split(':').map(Number);
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        
+        // Compare with current hour
+        return hours > now.getHours();
+      });
+    }
+
+    // FILTER OUT ALREADY BOOKED SLOTS
+    const dateStr = `${year}-${month}-${day}`;
+    filteredSlots = filteredSlots.filter(slot => {
+      // Convert "02:00 PM" to "14:00:00" for comparison
+      const [timePart, period] = slot.split(' ');
+      let [h, m] = timePart.split(':').map(Number);
+      if (period === 'PM' && h !== 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      const time24 = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`;
+
+      const isBooked = bookedSlots.some(b => 
+        b.date === dateStr && b.time === time24
+      );
+      return !isBooked;
+    });
+    
     // Sort slots chronologically
-    return slots.sort((a, b) => {
+    return filteredSlots.sort((a, b) => {
       const timeToMinutes = (t) => {
         const [time, period] = t.split(' ');
         let [hours, minutes] = time.split(':').map(Number);
@@ -219,9 +275,11 @@ export default function LawyerProfile() {
                     </div>
                     <p className="text-xl text-[#a47731] font-medium mb-3">{lawyer.specialization}</p>
                     <div className="flex items-center gap-1 mb-3">
-                      <Star className="w-5 h-5 fill-[#a47731] text-[#a47731]" />
-                      <span className="font-semibold text-[#1e293b]">{lawyer.rating}</span>
-                      <span className="text-[#64748b] text-sm ml-1">(48 reviews)</span>
+                      <Star className={`w-5 h-5 ${parseFloat(lawyer.rating) > 0 || reviews.length > 0 ? 'fill-[#a47731] text-[#a47731]' : 'text-[#cbd5e1]'}`} />
+                      <span className="font-semibold text-[#1e293b]">
+                        {parseFloat(lawyer.rating) > 0 ? lawyer.rating : (reviews.length > 0 ? lawyer.rating : 'New')}
+                      </span>
+                      <span className="text-[#64748b] text-sm ml-1">({reviews.length} reviews)</span>
                     </div>
                   </div>
                   
@@ -245,12 +303,27 @@ export default function LawyerProfile() {
                   </div>
                 </div>
 
+                <Button 
+                  onClick={() => {
+                    const userStr = localStorage.getItem('user');
+                    if (!userStr) {
+                      toast.error('Please sign in as a client to book an appointment');
+                      navigate('/signin');
+                      return;
+                    }
+                    const user = JSON.parse(userStr);
+                    if (user.role !== 'CLIENT') {
+                      toast.error('Only client accounts can book consultations');
+                      return;
+                    }
+                    setIsBookingOpen(true);
+                  }}
+                  className="bg-[#a47731] hover:bg-[#8d6629] text-white w-full md:w-auto px-8"
+                >
+                  Book Consultation
+                </Button>
+
                 <Dialog open={isBookingOpen} onOpenChange={setIsBookingOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-[#a47731] hover:bg-[#8d6629] text-white w-full md:w-auto px-8">
-                      Book Consultation
-                    </Button>
-                  </DialogTrigger>
                   <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle className="font-['Playfair_Display'] text-2xl">
@@ -266,7 +339,11 @@ export default function LawyerProfile() {
                           mode="single"
                           selected={selectedDate}
                           onSelect={setSelectedDate}
-                          disabled={(date) => date < new Date()}
+                          disabled={(date) => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            return date < today;
+                          }}
                           className="rounded-md border border-[#1e293b]/10"
                         />
                       </div>
@@ -330,7 +407,7 @@ export default function LawyerProfile() {
           </Card>
 
           {/* Credentials */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-3 gap-6">
             <Card className="p-6 bg-white border-[#1e293b]/10">
               <div className="flex items-start gap-3">
                 <div className="w-12 h-12 rounded-lg bg-[#a47731]/10 flex items-center justify-center flex-shrink-0">
@@ -358,6 +435,18 @@ export default function LawyerProfile() {
                 </div>
               </div>
             </Card>
+
+            <Card className="p-6 bg-white border-[#1e293b]/10">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-lg bg-[#a47731]/10 flex items-center justify-center flex-shrink-0">
+                  <MapPin className="w-6 h-6 text-[#a47731]" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#1e293b] mb-2">Office Address</h3>
+                  <p className="text-[#64748b] text-sm">{lawyer.officeAddress}</p>
+                </div>
+              </div>
+            </Card>
           </div>
 
           {/* Availability */}
@@ -371,14 +460,14 @@ export default function LawyerProfile() {
                 {availability.length > 0 ? (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-2 gap-x-4">
                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => {
-                      const daySlots = availability.filter(a => a.dayOfWeek === idx);
+                      const daySlots = availability.filter(a => a.day_of_week === idx);
                       if (daySlots.length === 0) return null;
                       return (
                         <div key={day} className="text-sm">
                           <span className="font-medium text-[#1e293b]">{day}:</span>
                           <div className="text-[#64748b]">
                             {daySlots.map((s, i) => (
-                              <div key={i}>{s.startTime.substring(0, 5)} - {s.endTime.substring(0, 5)}</div>
+                              <div key={i}>{s.start_time.substring(0, 5)} - {s.end_time.substring(0, 5)}</div>
                             ))}
                           </div>
                         </div>
@@ -391,6 +480,51 @@ export default function LawyerProfile() {
                   </p>
                 )}
               </div>
+            </div>
+          </Card>
+
+          {/* Reviews Section */}
+          <Card className="p-8 bg-white border-[#1e293b]/10 mt-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-lg bg-[#a47731]/10 flex items-center justify-center flex-shrink-0">
+                <MessageSquare className="w-6 h-6 text-[#a47731]" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-['Playfair_Display'] text-[#1e293b]">
+                  Client Reviews
+                </h2>
+                <p className="text-sm text-[#64748b]">Real feedback from pLawo clients</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {reviews.length > 0 ? (
+                reviews.map((rev) => (
+                  <div key={rev.id} className="pb-6 border-b border-[#1e293b]/5 last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold text-[#1e293b]">{rev.client?.name}</h4>
+                      <span className="text-xs text-[#64748b]">
+                        {new Date(rev.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex mb-3">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${
+                            i < rev.rating ? 'fill-[#a47731] text-[#a47731]' : 'text-[#cbd5e1]'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-[#64748b] text-sm leading-relaxed">
+                      {rev.comment}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[#64748b] text-sm italic">No reviews yet for this lawyer.</p>
+              )}
             </div>
           </Card>
         </motion.div>

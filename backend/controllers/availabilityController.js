@@ -11,22 +11,22 @@ const setAvailability = async (req, res) => {
 
     // 1. Delete existing availability for this lawyer
     const { error: deleteError } = await supabase
-      .from('Availability')
+      .from('availability')
       .delete()
-      .eq('lawyerId', lawyerId);
+      .eq('lawyer_id', lawyerId);
 
     if (deleteError) throw deleteError;
 
     // 2. Insert new availability
     const availabilityToInsert = availability.map(slot => ({
-      lawyerId,
-      dayOfWeek: slot.dayOfWeek,
-      startTime: slot.startTime,
-      endTime: slot.endTime
+      lawyer_id: lawyerId,
+      day_of_week: slot.day_of_week,
+      start_time: slot.start_time,
+      end_time: slot.end_time
     }));
 
     const { data, error: insertError } = await supabase
-      .from('Availability')
+      .from('availability')
       .insert(availabilityToInsert)
       .select();
 
@@ -44,11 +44,11 @@ const getLawyerAvailability = async (req, res) => {
     const { lawyerId } = req.params;
 
     const { data: availability, error } = await supabase
-      .from('Availability')
+      .from('availability')
       .select('*')
-      .eq('lawyerId', lawyerId)
-      .order('dayOfWeek', { ascending: true })
-      .order('startTime', { ascending: true });
+      .eq('lawyer_id', lawyerId)
+      .order('day_of_week', { ascending: true })
+      .order('start_time', { ascending: true });
 
     if (error) throw error;
 

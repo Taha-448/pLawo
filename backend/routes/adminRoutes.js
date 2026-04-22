@@ -5,6 +5,6 @@ const { authenticateUser, requireAdmin } = require('../middlewares/authMiddlewar
 
 router.get('/dashboard', authenticateUser, requireAdmin, adminDashboard);
 router.put('/verify/:lawyerId', authenticateUser, requireAdmin, verifyLawyer);
-router.get('/license/:lawyerId', authenticateUser, requireAdmin, getLicenseUrl);
+router.get('/license/:lawyerId', authenticateUser, getLicenseUrl);
 
 module.exports = router;

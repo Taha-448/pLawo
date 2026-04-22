@@ -3,23 +3,26 @@ const { supabase } = require('../config/supabase');
 const createAppointment = async (req, res) => {
   try {
     const { lawyerId, date, time } = req.body;
-    const clientId = req.user.userId;
+    const { userId: clientId, role } = req.user;
+ 
+    if (role !== 'CLIENT') {
+      return res.status(403).json({ message: 'Only clients can book appointments' });
+    }
 
     if (!lawyerId || !date || !time) {
       return res.status(400).json({ message: 'Missing required fields (lawyerId, date, time)' });
     }
 
     // 1. Validate Lawyer Availability
-    // Use getUTCDay() because 'YYYY-MM-DD' strings are parsed as UTC midnight
     const dayOfWeek = new Date(date).getUTCDay(); 
     
     const { data: availability, error: availError } = await supabase
-      .from('Availability')
+      .from('availability')
       .select('*')
-      .eq('lawyerId', lawyerId)
-      .eq('dayOfWeek', dayOfWeek)
-      .lte('startTime', time)
-      .gte('endTime', time);
+      .eq('lawyer_id', lawyerId)
+      .eq('day_of_week', dayOfWeek)
+      .lte('start_time', time)
+      .gte('end_time', time);
 
     if (availError) throw availError;
 
@@ -27,29 +30,31 @@ const createAppointment = async (req, res) => {
       return res.status(400).json({ message: 'Lawyer is not available at this day or time' });
     }
 
-    // 2. Check for Conflicts (Existing Appointments)
+    // 2. Check for Conflicts (Model 1: Strict Reservation)
     const { data: conflict, error: conflictError } = await supabase
-      .from('Appointment')
+      .from('appointments')
       .select('id')
-      .eq('lawyerId', lawyerId)
+      .eq('lawyer_id', lawyerId)
       .eq('date', date)
       .eq('time', time)
+      .in('status', ['PENDING', 'CONFIRMED', 'COMPLETED'])
       .maybeSingle();
 
     if (conflictError) throw conflictError;
+
     if (conflict) {
-      return res.status(400).json({ message: 'This time slot is already booked' });
+      return res.status(409).json({ message: 'This time slot is already reserved or booked. Please choose another.' });
     }
 
     // 3. Create Appointment
     const { data: appointment, error: insertError } = await supabase
-      .from('Appointment')
+      .from('appointments')
       .insert({
-        clientId: clientId,
-        lawyerId: lawyerId,
+        client_id: clientId,
+        lawyer_id: lawyerId,
         date: date,
         time,
-        legalIssue: req.body.legalIssue || 'Consultation Request',
+        legal_issue: req.body.legalIssue || 'Consultation Request',
         status: 'PENDING'
       })
       .select()
@@ -68,31 +73,49 @@ const getMyAppointments = async (req, res) => {
   try {
     const { userId, role } = req.user;
 
-    let query = supabase.from('Appointment').select(`
+    const selectQuery = `
       *,
-      lawyer:User!Appointment_lawyerId_fkey(
+      lawyer:users!lawyer_id(
         name,
-        lawyerProfile:LawyerProfile(*)
+        lawyer_profile:lawyer_profiles(*)
       ),
-      client:User!Appointment_clientId_fkey(
+      client:users!client_id(
         name,
         email
-      )
-    `);
+      ),
+      reviews:reviews(id, rating, comment)
+    `;
+
+    let query = supabase.from('appointments').select(selectQuery);
 
     if (role === 'CLIENT') {
-      query = query.eq('clientId', userId);
+      query = query.eq('client_id', userId);
     } else if (role === 'LAWYER') {
-      query = query.eq('lawyerId', userId);
+      query = query.eq('lawyer_id', userId);
     } else {
       return res.status(403).json({ message: 'Not authorized for appointments' });
     }
 
     const { data: appointments, error } = await query.order('date', { ascending: true });
 
-    if (error) throw error;
-    
-    res.status(200).json(appointments);
+    if (error) {
+      console.error('Supabase Query Error:', error);
+      throw error;
+    }
+
+    // MANUAL JOIN: Fetch all reviews for these appointments to ensure visibility
+    const appointmentIds = appointments.map(a => a.id);
+    const { data: reviews } = await supabase
+      .from('reviews')
+      .select('*')
+      .in('appointment_id', appointmentIds);
+
+    const appointmentsWithReviews = appointments.map(apt => ({
+      ...apt,
+      reviews: reviews?.filter(r => r.appointment_id === apt.id) || []
+    }));
+
+    res.status(200).json(appointmentsWithReviews);
   } catch (error) {
     console.error('Error fetching appointments', error);
     res.status(500).json({ message: 'Server error' });
@@ -107,10 +130,10 @@ const updateAppointmentStatus = async (req, res) => {
 
     // Verify appointment belongs to this lawyer
     const { data: appointment, error: findError } = await supabase
-      .from('Appointment')
+      .from('appointments')
       .select('id')
       .eq('id', id)
-      .eq('lawyerId', lawyerId)
+      .eq('lawyer_id', lawyerId)
       .single();
 
     if (findError || !appointment) {
@@ -118,9 +141,9 @@ const updateAppointmentStatus = async (req, res) => {
     }
 
     const { data: updated, error: updateError } = await supabase
-      .from('Appointment')
-      .update({ status })
-      .eq('id', parseInt(id))
+      .from('appointments')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
       .select()
       .single();
 
@@ -133,8 +156,26 @@ const updateAppointmentStatus = async (req, res) => {
   }
 };
 
+const getLawyerBookedSlots = async (req, res) => {
+  try {
+    const { lawyerId } = req.params;
+    const { data, error } = await supabase
+      .from('appointments')
+      .select('date, time')
+      .eq('lawyer_id', lawyerId)
+      .in('status', ['PENDING', 'CONFIRMED', 'COMPLETED']);
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error fetching booked slots' });
+  }
+};
+
 module.exports = {
   createAppointment,
   getMyAppointments,
-  updateAppointmentStatus
+  updateAppointmentStatus,
+  getLawyerBookedSlots
 };

@@ -2,15 +2,21 @@ const { supabase } = require('../config/supabase');
 const { uploadToSupabase } = require('../utils/storageUtils');
 
 const registerLawyer = async (req, res) => {
-  const { userId, specialization, city, fees, bio, yearsOfExperience, education, barLicenseNumber } = req.body;
+  const { userId, specialization, city, fees, bio, yearsOfExperience, education, barLicenseNumber, officeAddress } = req.body;
   
-  let profilePhoto = null;
-  if (req.file) {
+  let profile_photo = null;
+  let bar_license_file = null;
+
+  if (req.files) {
     try {
-      profilePhoto = await uploadToSupabase(req.file, 'profile-photos');
+      if (req.files.profilePhoto) {
+        profile_photo = await uploadToSupabase(req.files.profilePhoto[0], 'profile-photos');
+      }
+      if (req.files.barLicenseFile) {
+        bar_license_file = await uploadToSupabase(req.files.barLicenseFile[0], 'bar-licenses');
+      }
     } catch (err) {
       console.error("Storage Error:", err);
-      // Fallback or handle error
     }
   }
 
@@ -19,12 +25,12 @@ const registerLawyer = async (req, res) => {
   }
 
   try {
-    // 1. Verify User exists (created by trigger) - Add small retry loop for race conditions
+    // 1. Verify User exists (created by trigger)
     let user = null;
     
     for (let i = 0; i < 3; i++) {
       const { data, error } = await supabase
-        .from('User')
+        .from('users')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
@@ -34,32 +40,30 @@ const registerLawyer = async (req, res) => {
         break;
       }
       
-      console.log(`User not found yet (attempt ${i + 1}), retrying in 1s...`);
-      if (error) console.log("Current Supabase Error:", error.message);
-      
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     if (!user) {
-      console.error("User not found for profile creation after all retries.");
-      return res.status(404).json({ message: 'User record not yet created. If you just signed up, please wait a moment and try again or ensure your Supabase trigger is active.' });
+      return res.status(404).json({ message: 'User record not yet created.' });
     }
 
-    // 2. Create LawyerProfile
+    // 2. Create lawyer_profiles
     const { error: profileError } = await supabase
-      .from('LawyerProfile')
+      .from('lawyer_profiles')
       .insert({
-        userId: user.id,
+        user_id: user.id,
         specialization,
         city,
         fees: parseFloat(fees) || 0.00,
         bio,
-        yearsOfExperience: parseInt(yearsOfExperience) || 0,
+        years_of_experience: parseInt(yearsOfExperience) || 0,
         education,
-        barLicenseNumber,
-        profilePhoto: profilePhoto || null,
-        isVerified: false,
-        rating: 4.8
+        bar_license_number: barLicenseNumber,
+        office_address: officeAddress,
+        bar_license_file: bar_license_file || null,
+        profile_photo: profile_photo || null,
+        is_verified: false,
+        rating: 0.0
       });
 
     if (profileError) {

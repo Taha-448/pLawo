@@ -22,25 +22,40 @@ const adminDashboard = async (req, res) => {
       { count: totalClients },
       { count: totalAppointments },
       { data: pendingLawyers },
-      { data: appointments }
+      { data: appointments },
+      { data: globalActivity }
     ] = await Promise.all([
-      supabase.from('User').select('*', { count: 'exact', head: true }).eq('role', 'LAWYER'),
-      supabase.from('User').select('*', { count: 'exact', head: true }).eq('role', 'CLIENT'),
-      supabase.from('Appointment').select('*', { count: 'exact', head: true }).gte('date', isoStartDate),
-      supabase.from('User').select('*, lawyerProfile:LawyerProfile!inner(*)').eq('role', 'LAWYER').eq('LawyerProfile.isVerified', false),
-      supabase.from('Appointment').select(`
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'LAWYER'),
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'CLIENT'),
+      supabase.from('appointments').select('*', { count: 'exact', head: true }).gte('date', isoStartDate),
+      supabase.from('users').select('*, lawyer_profile:lawyer_profiles!inner(*)').eq('role', 'LAWYER').eq('lawyer_profiles.is_verified', false),
+      supabase.from('appointments').select(`
         date,
-        lawyer:User!Appointment_lawyerId_fkey(
-          lawyerProfile:LawyerProfile(specialization)
+        lawyer:users!appointments_lawyer_id_fkey(
+          lawyer_profile:lawyer_profiles(specialization, fees)
         )
-      `).gte('date', isoStartDate)
+      `).gte('date', isoStartDate),
+      supabase.from('appointments').select(`
+        id,
+        date,
+        time,
+        status,
+        legal_issue,
+        client:users!appointments_client_id_fkey(name),
+        lawyer:users!appointments_lawyer_id_fkey(name)
+      `).order('created_at', { ascending: false }).limit(10)
     ]);
 
     // Monthly Trend
     const monthlyTrendMap = {};
+    let totalRevenue = 0;
+    
     appointments?.forEach(apt => {
       const month = new Date(apt.date).toLocaleString('default', { month: 'short' });
       monthlyTrendMap[month] = (monthlyTrendMap[month] || 0) + 1;
+      
+      // Calculate revenue from booked fees
+      totalRevenue += (apt.lawyer?.lawyer_profile?.fees || 0);
     });
 
     const monthlyTrend = Object.keys(monthlyTrendMap).map(month => ({
@@ -51,7 +66,7 @@ const adminDashboard = async (req, res) => {
     // Specialization Distribution
     const specializationMap = {};
     appointments?.forEach(apt => {
-      const spec = apt.lawyer?.lawyerProfile?.specialization || 'General';
+      const spec = apt.lawyer?.lawyer_profile?.specialization || 'General';
       specializationMap[spec] = (specializationMap[spec] || 0) + 1;
     });
 
@@ -66,8 +81,10 @@ const adminDashboard = async (req, res) => {
         totalLawyers, 
         totalClients, 
         totalAppointments,
+        totalRevenue,
         monthlyTrend,
-        specializationDistribution
+        specializationDistribution,
+        globalActivity: globalActivity || []
       },
       pendingLawyers
     });
@@ -82,17 +99,17 @@ const verifyLawyer = async (req, res) => {
     const { lawyerId } = req.params;
     
     const { data: profile, error: findError } = await supabase
-      .from('LawyerProfile')
+      .from('lawyer_profiles')
       .select('id')
-      .eq('userId', lawyerId)
+      .eq('user_id', lawyerId)
       .single();
 
     if (findError || !profile) return res.status(404).json({ message: 'Lawyer profile not found' });
 
     const { error: updateError } = await supabase
-      .from('LawyerProfile')
-      .update({ isVerified: true })
-      .eq('userId', lawyerId);
+      .from('lawyer_profiles')
+      .update({ is_verified: true, updated_at: new Date().toISOString() })
+      .eq('user_id', lawyerId);
 
     if (updateError) throw updateError;
     
@@ -108,18 +125,23 @@ const getLicenseUrl = async (req, res) => {
     const { lawyerId } = req.params;
     const { getSignedUrl } = require('../utils/storageUtils');
 
+    // Security: Only the lawyer themselves or an admin can see the license
+    if (req.user.role !== 'ADMIN' && req.user.userId !== lawyerId) {
+      return res.status(403).json({ message: 'Unauthorized access to document' });
+    }
+
     const { data: profile, error } = await supabase
-      .from('LawyerProfile')
-      .select('barLicenseFile')
-      .eq('userId', lawyerId)
+      .from('lawyer_profiles')
+      .select('bar_license_file')
+      .eq('user_id', lawyerId)
       .single();
 
-    if (error || !profile?.barLicenseFile) {
+    if (error || !profile?.bar_license_file) {
       return res.status(404).json({ message: 'License file not found' });
     }
 
-    // Generate signed URL (expires in 5 minutes)
-    const signedUrl = await getSignedUrl('bar-licenses', profile.barLicenseFile);
+    // Generate signed URL (expires in 1 hour as per storageUtils)
+    const signedUrl = await getSignedUrl('bar-licenses', profile.bar_license_file);
     
     res.status(200).json({ url: signedUrl });
   } catch (error) {

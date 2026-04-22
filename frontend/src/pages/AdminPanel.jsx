@@ -7,7 +7,7 @@ import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import { Users, Calendar, UserCheck, AlertCircle, CheckCircle, XCircle, TrendingUp, Clock } from 'lucide-react';
+import { Users, Calendar, UserCheck, AlertCircle, CheckCircle, XCircle, TrendingUp, Clock, Activity, DollarSign, Globe } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { toast } from 'sonner';
 import { adminApi } from '../services/api';
@@ -17,8 +17,10 @@ export default function AdminPanel() {
     totalLawyers: 0, 
     totalClients: 0, 
     totalAppointments: 0,
+    totalRevenue: 0,
     monthlyTrend: [],
-    specializationDistribution: []
+    specializationDistribution: [],
+    globalActivity: []
   });
   const [pendingLawyers, setPendingLawyers] = useState([]);
   const [timeRange, setTimeRange] = useState('6months');
@@ -35,10 +37,10 @@ export default function AdminPanel() {
           id: lawyer.id,
           fullName: lawyer.name,
           email: lawyer.email,
-          specialization: lawyer.lawyerProfile?.specialization || 'General',
-          city: lawyer.lawyerProfile?.city || 'Unknown',
-          barLicenseNumber: lawyer.lawyerProfile?.barLicenseNumber || 'N/A',
-          submittedDate: new Date(lawyer.createdAt).toLocaleDateString()
+          specialization: lawyer.lawyer_profile?.specialization || 'General',
+          city: lawyer.lawyer_profile?.city || 'Unknown',
+          barLicenseNumber: lawyer.lawyer_profile?.bar_license_number || 'N/A',
+          submittedDate: new Date(lawyer.created_at).toLocaleDateString()
         }));
         setPendingLawyers(mappedPending);
       } catch (err) {
@@ -125,15 +127,15 @@ export default function AdminPanel() {
             <Card className="p-6 bg-gradient-to-br from-[#a47731] to-[#8d6629] text-white border-0">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white/80 text-sm mb-1">Total Appointments</p>
-                  <p className="text-4xl font-semibold">{stats.totalAppointments}</p>
+                  <p className="text-white/80 text-sm mb-1">Platform Revenue</p>
+                  <p className="text-4xl font-semibold">PKR {stats.totalRevenue?.toLocaleString()}</p>
                   <div className="flex items-center gap-1 mt-2 text-sm">
-                    <TrendingUp className="w-4 h-4" />
-                    <span>In selected period</span>
+                    <DollarSign className="w-4 h-4" />
+                    <span>Total Booked Fees</span>
                   </div>
                 </div>
                 <div className="w-12 h-12 rounded-lg bg-white/20 flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-white" />
+                  <TrendingUp className="w-6 h-6 text-white" />
                 </div>
               </div>
             </Card>
@@ -209,6 +211,7 @@ export default function AdminPanel() {
           <Tabs defaultValue="verification" className="space-y-6">
             <TabsList className="bg-white border border-[#1e293b]/10">
               <TabsTrigger value="verification">Verification Queue</TabsTrigger>
+              <TabsTrigger value="activity">Platform Activity</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
@@ -304,6 +307,70 @@ export default function AdminPanel() {
               </Card>
             </TabsContent>
 
+            <TabsContent value="activity">
+              <Card className="bg-white border-[#1e293b]/10">
+                <div className="p-6 border-b border-[#1e293b]/10">
+                  <h2 className="text-xl font-['Playfair_Display'] text-[#1e293b] flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-[#a47731]" />
+                    Live Platform Activity
+                  </h2>
+                  <p className="text-[#64748b] text-sm mt-1">
+                    Real-time overview of appointments across pLawo
+                  </p>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Lawyer</TableHead>
+                        <TableHead>Date & Time</TableHead>
+                        <TableHead>Issue</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {stats.globalActivity?.map((apt) => (
+                        <TableRow key={apt.id}>
+                          <TableCell className="text-xs font-mono text-[#64748b]">
+                            #{apt.id.slice(0, 8)}
+                          </TableCell>
+                          <TableCell className="font-medium">{apt.client?.name}</TableCell>
+                          <TableCell className="font-medium text-[#a47731]">{apt.lawyer?.name}</TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              {new Date(apt.date).toLocaleDateString()}
+                              <span className="block text-xs text-[#64748b]">{apt.time}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate text-[#64748b]">
+                            {apt.legal_issue}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={
+                              apt.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                              apt.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' :
+                              apt.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                              'bg-red-100 text-red-700'
+                            }>
+                              {apt.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {(!stats.globalActivity || stats.globalActivity.length === 0) && (
+                    <div className="p-12 text-center text-[#64748b]">
+                      No activity recorded yet.
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </TabsContent>
+
             {/* Analytics */}
             <TabsContent value="analytics" className="space-y-6">
               {/* Monthly Appointments Chart */}
@@ -324,7 +391,7 @@ export default function AdminPanel() {
                           borderRadius: '8px',
                         }}
                       />
-                      <Bar dataKey="count" fill="#a47731" radius={[8, 8, 0, 0]} />
+                      <Bar dataKey="count" fill="#a47731" radius={[8, 8, 0, 0]} maxBarSize={60} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (

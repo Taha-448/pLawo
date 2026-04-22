@@ -4,10 +4,10 @@ const { uploadToSupabase } = require('../utils/storageUtils');
 const getLawyers = async (req, res) => {
   try {
     const { data: lawyers, error } = await supabase
-      .from('User')
-      .select('id, name, email, lawyerProfile:LawyerProfile!inner(*)')
+      .from('users')
+      .select('id, name, email, lawyer_profile:lawyer_profiles!inner(*)')
       .eq('role', 'LAWYER')
-      .eq('LawyerProfile.isVerified', true);
+      .eq('lawyer_profiles.is_verified', true);
 
     if (error) throw error;
     res.status(200).json(lawyers);
@@ -22,12 +22,12 @@ const getLawyerById = async (req, res) => {
     const { id: lawyerId } = req.params;
 
     const { data: lawyer, error } = await supabase
-      .from('User')
+      .from('users')
       .select(`
         id, 
         name, 
         email, 
-        lawyerProfile:LawyerProfile(*)
+        lawyer_profile:lawyer_profiles(*)
       `)
       .eq('id', lawyerId)
       .eq('role', 'LAWYER')
@@ -35,10 +35,6 @@ const getLawyerById = async (req, res) => {
 
     if (error) {
       console.error('Supabase error in getLawyerById:', error);
-      return res.status(404).json({ message: 'Lawyer not found', details: error.message });
-    }
-    
-    if (!lawyer) {
       return res.status(404).json({ message: 'Lawyer not found' });
     }
     
@@ -51,7 +47,7 @@ const getLawyerById = async (req, res) => {
 
 const updateLawyerProfile = async (req, res) => {
   try {
-    const { specialization, city, bio, fees, education, barLicenseNumber } = req.body;
+    const { specialization, city, bio, fees, education, barLicenseNumber, officeAddress } = req.body;
     const userId = req.user.userId;
     
     let updateData = {
@@ -59,23 +55,25 @@ const updateLawyerProfile = async (req, res) => {
       city,
       bio,
       education,
-      barLicenseNumber,
-      fees: parseFloat(fees) || 0.00
+      bar_license_number: barLicenseNumber,
+      office_address: officeAddress,
+      fees: parseFloat(fees) || 0.00,
+      updated_at: new Date().toISOString()
     };
 
     if (req.files) {
       if (req.files.profilePhoto) {
-        updateData.profilePhoto = await uploadToSupabase(req.files.profilePhoto[0], 'profile-photos');
+        updateData.profile_photo = await uploadToSupabase(req.files.profilePhoto[0], 'profile-photos');
       }
       if (req.files.barLicenseFile) {
-        updateData.barLicenseFile = await uploadToSupabase(req.files.barLicenseFile[0], 'bar-licenses');
+        updateData.bar_license_file = await uploadToSupabase(req.files.barLicenseFile[0], 'bar-licenses');
       }
     }
 
     const { data: updatedProfile, error } = await supabase
-      .from('LawyerProfile')
+      .from('lawyer_profiles')
       .update(updateData)
-      .eq('userId', userId)
+      .eq('user_id', userId)
       .select()
       .single();
 

@@ -19,7 +19,7 @@ async function createAdmin() {
     if (authError.message.includes('already registered')) {
       console.log('User already exists in Supabase Auth. Updating role in database...');
       // Get the user ID if it exists
-      const { data: existingUsers } = await supabase.from('User').select('id').eq('email', email);
+      const { data: existingUsers } = await supabase.from('users').select('id').eq('email', email);
       if (existingUsers && existingUsers.length > 0) {
         const userId = existingUsers[0].id;
         await updateRole(userId);
@@ -32,7 +32,7 @@ async function createAdmin() {
 
   console.log('Auth user created successfully:', authData.user.id);
 
-  // 2. The trigger should have created the record in public.User. 
+  // 2. The trigger should have created the record in public.users. 
   // Let's wait a moment and then update its role.
   setTimeout(async () => {
     await updateRole(authData.user.id);
@@ -41,15 +41,15 @@ async function createAdmin() {
 
 async function updateRole(userId) {
   const { error: dbError } = await supabase
-    .from('User')
+    .from('users')
     .update({ role: 'ADMIN' })
     .eq('id', userId);
 
   if (dbError) {
-    console.error('Error updating role in User table:', dbError.message);
+    console.error('Error updating role in users table:', dbError.message);
     // Fallback: If trigger didn't work, insert manually
     const { error: insertError } = await supabase
-      .from('User')
+      .from('users')
       .upsert({
         id: userId,
         email: 'admin@demo.com',

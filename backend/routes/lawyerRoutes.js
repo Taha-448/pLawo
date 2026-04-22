@@ -3,7 +3,7 @@ const router = express.Router();
 const { getLawyers, getLawyerById, updateLawyerProfile } = require('../controllers/lawyerController');
 const { authenticateUser } = require('../middlewares/authMiddleware');
 
-const upload = require('../middleware/multerConfig');
+const upload = require('../middlewares/multerConfig');
 
 router.get('/', getLawyers);
 router.get('/:id', getLawyerById);

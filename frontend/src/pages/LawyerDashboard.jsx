@@ -12,13 +12,14 @@ import { Textarea } from '../components/ui/textarea';
 import { Input } from '../components/ui/input';
 import { Calendar, Clock, CheckCircle, XCircle, Upload, FileText, User, Eye, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { lawyerApi, appointmentApi, availabilityApi } from '../services/api';
+import { lawyerApi, appointmentApi, availabilityApi, adminApi, reviewApi } from '../services/api';
 import ManageAvailability from '../components/ManageAvailability';
 
 export default function LawyerDashboard() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [lawyerProfile, setLawyerProfile] = useState(null);
   const [lawyerAppointments, setLawyerAppointments] = useState([]);
+  const [reviewCount, setReviewCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -30,15 +31,15 @@ export default function LawyerDashboard() {
           const formattedProfile = {
             id: profileData.id,
             fullName: profileData.name,
-            specialization: profileData.lawyerProfile?.specialization || '',
-            bio: profileData.lawyerProfile?.bio || '',
-            consultationFee: profileData.lawyerProfile?.fees || 0,
-            verified: profileData.lawyerProfile?.isVerified || false,
-            rating: profileData.lawyerProfile?.rating || 4.8,
-            education: profileData.lawyerProfile?.education || '',
-            barLicenseNumber: profileData.lawyerProfile?.barLicenseNumber || '',
-            barLicenseFile: profileData.lawyerProfile?.barLicenseFile || null,
-            city: profileData.lawyerProfile?.city || '',
+            specialization: profileData.lawyer_profile?.specialization || '',
+            bio: profileData.lawyer_profile?.bio || '',
+            consultationFee: profileData.lawyer_profile?.fees || 0,
+            verified: profileData.lawyer_profile?.is_verified || false,
+            rating: profileData.lawyer_profile?.rating || 4.8,
+            education: profileData.lawyer_profile?.education || '',
+            barLicenseFile: profileData.lawyer_profile?.bar_license_file || null,
+            city: profileData.lawyer_profile?.city || '',
+            officeAddress: profileData.lawyer_profile?.office_address || '',
           };
           setLawyerProfile(formattedProfile);
         }
@@ -55,13 +56,17 @@ export default function LawyerDashboard() {
           return {
             id: apt.id.toString(),
             clientName: apt.client?.name || 'Unknown',
-            legalIssue: apt.legalIssue || 'Consultation Request',
+            legalIssue: apt.legal_issue || 'Consultation Request',
             date: new Date(apt.date).toLocaleDateString(),
             time: formattedTime,
             status: apt.status.toLowerCase(),
           };
         });
         setLawyerAppointments(mappedApts);
+
+        // Fetch reviews to get real count
+        const reviews = await reviewApi.getLawyerReviews(user.id);
+        setReviewCount(reviews.length);
       } catch (err) {
         console.error(err);
       }
@@ -122,6 +127,16 @@ export default function LawyerDashboard() {
     }
   };
 
+  const handleMarkCompleted = async (appointmentId) => {
+    try {
+      await appointmentApi.updateStatus(appointmentId, 'COMPLETED');
+      toast.success('Appointment marked as completed');
+      setLawyerAppointments(prev => prev.map(apt => apt.id === appointmentId ? { ...apt, status: 'completed' } : apt));
+    } catch (err) {
+      toast.error('Failed to mark as completed');
+    }
+  };
+
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     const formData = new FormData();
@@ -130,6 +145,7 @@ export default function LawyerDashboard() {
     formData.append('bio', e.target.bio.value);
     formData.append('education', e.target.education.value);
     formData.append('barLicenseNumber', e.target.barLicenseNumber.value);
+    formData.append('officeAddress', e.target.officeAddress.value);
     formData.append('city', lawyerProfile.city); // From state since it's a Select now
     
     if (e.target.profilePhoto.files[0]) {
@@ -148,7 +164,8 @@ export default function LawyerDashboard() {
         consultationFee: updated.fees,
         bio: updated.bio,
         education: updated.education,
-        barLicenseNumber: updated.barLicenseNumber,
+        barLicenseNumber: updated.bar_license_number,
+        officeAddress: updated.office_address,
         city: updated.city
       }));
     } catch (err) {
@@ -160,14 +177,10 @@ export default function LawyerDashboard() {
     try {
       const userStr = localStorage.getItem('user');
       const user = JSON.parse(userStr);
-      const response = await fetch(`http://localhost:5000/api/admin/license/${user.id}`, {
-        headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        }
-      });
-      const { url } = await response.json();
+      const { url } = await adminApi.getLicenseUrl(user.id);
       window.open(url, '_blank');
     } catch (err) {
+      console.error(err);
       toast.error('Failed to open document');
     }
   };
@@ -277,7 +290,7 @@ export default function LawyerDashboard() {
                 <div>
                   <p className="text-[#64748b] text-sm mb-1">Rating</p>
                   <p className="text-3xl font-semibold text-[#1e293b]">
-                    {lawyerProfile?.rating}
+                    {parseFloat(lawyerProfile?.rating) > 0 ? lawyerProfile.rating : (reviewCount > 0 ? lawyerProfile?.rating : 'New')}
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-lg bg-[#a47731]/10 flex items-center justify-center">
@@ -363,7 +376,17 @@ export default function LawyerDashboard() {
                               </div>
                             )}
                             {appointment.status === 'confirmed' && (
-                              <span className="text-sm text-[#64748b]">Confirmed</span>
+                              <div className="flex justify-end gap-2">
+                                <span className="text-sm text-[#64748b] mr-2 self-center">Confirmed</span>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleMarkCompleted(appointment.id)}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  Mark Completed
+                                </Button>
+                              </div>
                             )}
                             {appointment.status === 'completed' && (
                               <span className="text-sm text-[#64748b]">Completed</span>
@@ -415,16 +438,22 @@ export default function LawyerDashboard() {
 
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="license">Upload License Document</Label>
+                      <Label htmlFor="license">Update License Document</Label>
                       <div className="mt-2 flex items-center gap-3">
                         <Input
                           id="license"
                           type="file"
                           accept=".pdf"
                           onChange={handleFileChange}
+                          disabled={lawyerProfile?.verified}
                           className="flex-1 border-[#1e293b]/20"
                         />
                       </div>
+                      {lawyerProfile?.verified && (
+                        <p className="text-[10px] text-red-500 mt-1 italic">
+                          * Profile is verified. License updates are disabled. Contact support to change.
+                        </p>
+                      )}
                       {selectedFile && (
                         <p className="text-sm text-[#64748b] mt-2">
                           Selected: {selectedFile.name}
@@ -432,14 +461,16 @@ export default function LawyerDashboard() {
                       )}
                     </div>
 
-                    <Button
-                      onClick={handleUploadLicense}
-                      disabled={!selectedFile}
-                      className="w-full bg-[#a47731] hover:bg-[#8d6629] text-white"
-                    >
-                      <Upload className="w-4 h-4 mr-2" />
-                      Upload for Verification
-                    </Button>
+                    {!lawyerProfile?.verified && (
+                      <Button
+                        onClick={handleUploadLicense}
+                        disabled={!selectedFile}
+                        className="w-full bg-[#a47731] hover:bg-[#8d6629] text-white"
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload for Verification
+                      </Button>
+                    )}
 
                     {lawyerProfile?.verified ? (
                       <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
@@ -447,8 +478,16 @@ export default function LawyerDashboard() {
                           <CheckCircle className="w-5 h-5" />
                           <span className="font-medium">License Verified</span>
                         </div>
-                        <p className="text-sm text-green-600 mt-1">
+                        <p className="text-sm text-green-600 mt-1 flex items-center justify-between">
                           Your Bar Council license has been verified by pLawo
+                          <Button 
+                            variant="link" 
+                            size="sm" 
+                            onClick={handleViewMyLicense}
+                            className="text-green-700 p-0 h-auto font-semibold"
+                          >
+                            <Eye className="w-3 h-3 mr-1" /> View Document
+                          </Button>
                         </p>
                       </div>
                     ) : lawyerProfile?.barLicenseFile ? (
@@ -545,6 +584,7 @@ export default function LawyerDashboard() {
                           id="barLicenseNumber"
                           name="barLicenseNumber"
                           defaultValue={lawyerProfile?.barLicenseNumber}
+                          disabled={lawyerProfile?.verified}
                           className="mt-2 border-[#1e293b]/20"
                         />
                       </div>
@@ -578,6 +618,16 @@ export default function LawyerDashboard() {
                         name="bio"
                         defaultValue={lawyerProfile?.bio}
                         className="mt-2 min-h-[120px] border-[#1e293b]/20"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="officeAddress">Office Address</Label>
+                      <Input
+                        id="officeAddress"
+                        name="officeAddress"
+                        defaultValue={lawyerProfile?.officeAddress}
+                        className="mt-2 border-[#1e293b]/20"
                       />
                     </div>
 
