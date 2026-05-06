@@ -1,6 +1,12 @@
-const { supabase } = require('../config/supabase');
+const User = require('../models/User');
+const LawyerProfile = require('../models/LawyerProfile');
 const { getLegalCategory } = require('../services/aiService');
 
+// ─────────────────────────────────────────────────────────────────────────────
+// smartSearch
+// Uses AI to classify the user's legal issue and then performs a fuzzy search
+// across verified lawyer profiles using Mongoose regex.
+// ─────────────────────────────────────────────────────────────────────────────
 const smartSearch = async (req, res) => {
   const { description } = req.body;
 
@@ -9,42 +15,42 @@ const smartSearch = async (req, res) => {
   }
 
   try {
-    // 1. Ask AI to classify the problem
+    // 1. Ask AI to classify the problem and provide keywords
     const aiResult = await getLegalCategory(description);
     const category = aiResult.category;
-
-    // 2. Query Supabase for Verified Lawyers
     const keywords = aiResult.searchKeywords || [];
-    
-    let query = supabase
-      .from('users')
-      .select('id, name, email, lawyer_profile:lawyer_profiles!inner(*)')
-      .eq('role', 'LAWYER')
-      .eq('lawyer_profiles.is_verified', true);
+
+    // 2. Build the MongoDB Query
+    let profileQuery = { is_verified: true };
 
     if (category && category !== "Other") {
-      const orConditions = [
-        `specialization.ilike.%${category}%`,
-        `bio.ilike.%${category}%`
-      ];
-      
-      keywords.forEach(kw => {
-        orConditions.push(`specialization.ilike.%${kw}%`);
-        orConditions.push(`bio.ilike.%${kw}%`);
-      });
+      // Create a list of regex patterns for the category and all keywords
+      const searchPatterns = [category, ...keywords].map(term => new RegExp(term, 'i'));
 
-      query = query.or(orConditions.join(','), { foreignTable: 'lawyer_profiles' });
+      // Search in both 'specialization' and 'bio' fields
+      profileQuery.$or = [
+        { specialization: { $in: searchPatterns } },
+        { bio: { $in: searchPatterns } }
+      ];
     }
 
-    const { data: matchingLawyers, error } = await query;
+    // 3. Execute Query and Populate User Info
+    const matchingProfiles = await LawyerProfile.find(profileQuery)
+      .populate('user_id', 'name email');
 
-    if (error) throw error;
+    // 4. Format the response for the frontend
+    const lawyers = matchingProfiles.map(profile => ({
+      id: profile.user_id._id,
+      name: profile.user_id.name,
+      email: profile.user_id.email,
+      lawyer_profile: profile
+    }));
 
     res.status(200).json({
       aiAssignedCategory: aiResult.category,
       aiAnalysis: aiResult.analysis,
       aiApplicableLaws: aiResult.applicableLaws,
-      lawyers: matchingLawyers
+      lawyers: lawyers
     });
     
   } catch (error) {

@@ -1,5 +1,13 @@
-const { supabase } = require('../config/supabase');
+const Appointment = require('../models/Appointment');
+const Availability = require('../models/Availability');
+const Review = require('../models/Review');
+const User = require('../models/User');
 
+// ─────────────────────────────────────────────────────────────────────────────
+// createAppointment
+// Books a new legal consultation after verifying lawyer availability and
+// ensuring no conflicting bookings exist for that slot.
+// ─────────────────────────────────────────────────────────────────────────────
 const createAppointment = async (req, res) => {
   try {
     const { lawyerId, date, time } = req.body;
@@ -16,159 +24,140 @@ const createAppointment = async (req, res) => {
     // 1. Validate Lawyer Availability
     const dayOfWeek = new Date(date).getUTCDay(); 
     
-    const { data: availability, error: availError } = await supabase
-      .from('availability')
-      .select('*')
-      .eq('lawyer_id', lawyerId)
-      .eq('day_of_week', dayOfWeek)
-      .lte('start_time', time)
-      .gte('end_time', time);
+    const availability = await Availability.findOne({
+      lawyer_id: lawyerId,
+      day_of_week: dayOfWeek,
+      start_time: { $lte: time },
+      end_time: { $gte: time }
+    });
 
-    if (availError) throw availError;
-
-    if (!availability || availability.length === 0) {
+    if (!availability) {
       return res.status(400).json({ message: 'Lawyer is not available at this day or time' });
     }
 
-    // 2. Check for Conflicts (Model 1: Strict Reservation)
-    const { data: conflict, error: conflictError } = await supabase
-      .from('appointments')
-      .select('id')
-      .eq('lawyer_id', lawyerId)
-      .eq('date', date)
-      .eq('time', time)
-      .in('status', ['PENDING', 'CONFIRMED', 'COMPLETED'])
-      .maybeSingle();
-
-    if (conflictError) throw conflictError;
+    // 2. Check for Conflicts (Ignore CANCELLED status)
+    const conflict = await Appointment.findOne({
+      lawyer_id: lawyerId,
+      date: date,
+      time: time,
+      status: { $in: ['PENDING', 'CONFIRMED', 'COMPLETED'] }
+    });
 
     if (conflict) {
       return res.status(409).json({ message: 'This time slot is already reserved or booked. Please choose another.' });
     }
 
     // 3. Create Appointment
-    const { data: appointment, error: insertError } = await supabase
-      .from('appointments')
-      .insert({
-        client_id: clientId,
-        lawyer_id: lawyerId,
-        date: date,
-        time,
-        legal_issue: req.body.legalIssue || 'Consultation Request',
-        status: 'PENDING'
-      })
-      .select()
-      .single();
-
-    if (insertError) throw insertError;
+    const appointment = await Appointment.create({
+      client_id: clientId,
+      lawyer_id: lawyerId,
+      date: date,
+      time,
+      legal_issue: req.body.legalIssue || 'Consultation Request',
+      status: 'PENDING'
+    });
 
     res.status(201).json(appointment);
   } catch (error) {
-    console.error('Error creating appointment', error);
+    console.error('Error creating appointment:', error);
     res.status(500).json({ message: 'Server error creating appointment' });
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// getMyAppointments
+// Returns all appointments for the logged-in user (as a client or lawyer).
+// Includes populated lawyer/client info and reviews.
+// ─────────────────────────────────────────────────────────────────────────────
 const getMyAppointments = async (req, res) => {
   try {
     const { userId, role } = req.user;
-
-    const selectQuery = `
-      *,
-      lawyer:users!lawyer_id(
-        name,
-        lawyer_profile:lawyer_profiles(*)
-      ),
-      client:users!client_id(
-        name,
-        email
-      ),
-      reviews:reviews(id, rating, comment)
-    `;
-
-    let query = supabase.from('appointments').select(selectQuery);
+    let filter = {};
 
     if (role === 'CLIENT') {
-      query = query.eq('client_id', userId);
+      filter.client_id = userId;
     } else if (role === 'LAWYER') {
-      query = query.eq('lawyer_id', userId);
+      filter.lawyer_id = userId;
     } else {
       return res.status(403).json({ message: 'Not authorized for appointments' });
     }
 
-    const { data: appointments, error } = await query.order('date', { ascending: true });
+    const appointments = await Appointment.find(filter)
+      .populate({
+        path: 'lawyer_id',
+        select: 'name',
+        populate: { path: 'lawyer_profile' }
+      })
+      .populate('client_id', 'name email')
+      .populate('reviews')
+      .sort({ date: 1, time: 1 });
 
-    if (error) {
-      console.error('Supabase Query Error:', error);
-      throw error;
-    }
+    // Map to the same structure as the old Supabase response
+    const formatted = appointments.map(apt => {
+      const doc = apt.toObject({ virtuals: true });
+      return {
+        ...doc,
+        lawyer: {
+          name: doc.lawyer_id?.name,
+          lawyer_profile: doc.lawyer_id?.lawyer_profile
+        },
+        client: {
+          name: doc.client_id?.name,
+          email: doc.client_id?.email
+        }
+      };
+    });
 
-    // MANUAL JOIN: Fetch all reviews for these appointments to ensure visibility
-    const appointmentIds = appointments.map(a => a.id);
-    const { data: reviews } = await supabase
-      .from('reviews')
-      .select('*')
-      .in('appointment_id', appointmentIds);
-
-    const appointmentsWithReviews = appointments.map(apt => ({
-      ...apt,
-      reviews: reviews?.filter(r => r.appointment_id === apt.id) || []
-    }));
-
-    res.status(200).json(appointmentsWithReviews);
+    res.status(200).json(formatted);
   } catch (error) {
-    console.error('Error fetching appointments', error);
+    console.error('Error fetching appointments:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// updateAppointmentStatus
+// Allows a lawyer to accept/complete/cancel an appointment.
+// ─────────────────────────────────────────────────────────────────────────────
 const updateAppointmentStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
     const lawyerId = req.user.userId;
 
-    // Verify appointment belongs to this lawyer
-    const { data: appointment, error: findError } = await supabase
-      .from('appointments')
-      .select('id')
-      .eq('id', id)
-      .eq('lawyer_id', lawyerId)
-      .single();
+    const appointment = await Appointment.findOneAndUpdate(
+      { _id: id, lawyer_id: lawyerId },
+      { status },
+      { new: true }
+    );
 
-    if (findError || !appointment) {
+    if (!appointment) {
       return res.status(404).json({ message: 'Appointment not found or not authorized' });
     }
 
-    const { data: updated, error: updateError } = await supabase
-      .from('appointments')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (updateError) throw updateError;
-
-    res.status(200).json(updated);
+    res.status(200).json(appointment);
   } catch (error) {
-    console.error('Error updating appointment', error);
+    console.error('Error updating appointment:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// getLawyerBookedSlots
+// Returns all active appointments for a lawyer to help the frontend disable
+// already booked time slots in the UI.
+// ─────────────────────────────────────────────────────────────────────────────
 const getLawyerBookedSlots = async (req, res) => {
   try {
     const { lawyerId } = req.params;
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('date, time')
-      .eq('lawyer_id', lawyerId)
-      .in('status', ['PENDING', 'CONFIRMED', 'COMPLETED']);
+    const booked = await Appointment.find({
+      lawyer_id: lawyerId,
+      status: { $in: ['PENDING', 'CONFIRMED', 'COMPLETED'] }
+    }).select('date time');
 
-    if (error) throw error;
-    res.json(data);
+    res.json(booked);
   } catch (err) {
-    console.error(err);
+    console.error('Error fetching booked slots:', err);
     res.status(500).json({ message: 'Server error fetching booked slots' });
   }
 };

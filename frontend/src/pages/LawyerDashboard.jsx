@@ -35,7 +35,7 @@ export default function LawyerDashboard() {
             bio: profileData.lawyer_profile?.bio || '',
             consultationFee: profileData.lawyer_profile?.fees || 0,
             verified: profileData.lawyer_profile?.is_verified || false,
-            rating: profileData.lawyer_profile?.rating || 4.8,
+            rating: profileData.lawyer_profile?.rating || 0.0,
             education: profileData.lawyer_profile?.education || '',
             barLicenseFile: profileData.lawyer_profile?.bar_license_file || null,
             city: profileData.lawyer_profile?.city || '',

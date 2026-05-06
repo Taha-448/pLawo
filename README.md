@@ -1,12 +1,13 @@
-# ⚖️ pLawo - AI-Driven Legal Connection Platform
+# ⚖️ pLawo - AI-Driven Legal Connection Platform (MERN Stack)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tech: React](https://img.shields.io/badge/Frontend-React%2019-blue)](https://reactjs.org/)
 [![Tech: Node](https://img.shields.io/badge/Backend-Node.js%20Express-green)](https://nodejs.org/)
-[![Database: Supabase](https://img.shields.io/badge/Database-Supabase-purple)](https://supabase.com/)
+[![Database: MongoDB](https://img.shields.io/badge/Database-MongoDB%20Atlas-forestgreen)](https://www.mongodb.com/)
 [![AI: OpenAI](https://img.shields.io/badge/AI-GPT--4o--mini-orange)](https://openai.com/)
+[![Storage: Cloudinary](https://img.shields.io/badge/Storage-Cloudinary-blueviolet)](https://cloudinary.com/)
 
-**pLawo** is a premier legal technology platform designed specifically for the Pakistani legal landscape. It bridges the gap between citizens seeking legal assistance and qualified legal professionals using state-of-the-art AI-driven matching.
+**pLawo** is a premier legal technology platform designed specifically for the Pakistani legal landscape. It bridges the gap between citizens seeking legal assistance and qualified legal professionals using state-of-the-art AI-driven matching. Now fully migrated to a robust MERN stack for enhanced scalability and deployment flexibility.
 
 ---
 
@@ -21,7 +22,7 @@ In Pakistan, finding the right legal counsel is often a process of trial and err
 
 **pLawo** simplifies this journey by providing a centralized, AI-enhanced marketplace:
 1.  **AI Smart Search**: Users describe their problems in plain English or Urdu (Transliterated), and our AI (GPT-4o-mini) analyzes the query, classifies it into legal categories, and cites relevant Pakistani laws.
-2.  **Verified Professional Network**: Lawyers undergo a strict verification process involving private Bar License uploads and admin review.
+2.  **Verified Professional Network**: Lawyers undergo a strict verification process involving Bar License uploads (via Cloudinary) and admin review.
 3.  **Flexible Availability**: Dynamic office hours management with 1-hour slot generation and conflict prevention.
 4.  **Local Context**: Comprehensive support for all major Pakistani cities and professional PKR fee formatting.
 5.  **Role-Based Dashboards**: Tailored experiences for Clients, Lawyers, and Administrators with real-time status tracking.
@@ -32,16 +33,16 @@ In Pakistan, finding the right legal counsel is often a process of trial and err
 
 ### Frontend
 - **Framework**: React 19 (Vite)
-- **Styling**: Tailwind CSS
-- **Components**: Shadcn/UI & Lucide React
+- **Styling**: Tailwind CSS & Shadcn/UI
 - **Animations**: Framer Motion
 - **State/Routing**: React Router 7
+- **API Client**: Fetch API with JWT Bearer tokens
 
 ### Backend
 - **Runtime**: Node.js & Express
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth (RBAC via JWT)
-- **Storage**: Supabase Storage (Private/Public Buckets)
+- **Database**: MongoDB Atlas (Mongoose ODM)
+- **Authentication**: JWT (JSON Web Tokens) & Bcryptjs for password hashing
+- **Storage**: Cloudinary (Cloud-based media management)
 - **AI Integration**: OpenAI SDK (GPT-4o-mini)
 
 ---
@@ -54,39 +55,19 @@ pLawo/
 │   ├── src/
 │   │   ├── components/     # Reusable UI components (shadcn/ui)
 │   │   ├── pages/          # Main views (Admin, Client, Lawyer dashboards)
-│   │   ├── services/       # API integration layers
-│   │   ├── config/         # Supabase client configuration
+│   │   ├── services/       # API service layer (JWT handling)
 │   │   └── App.jsx         # Main application entry
-│   └── .env                # Frontend environment variables
+│   └── .env                # VITE_API_URL
 ├── backend/                # Node.js + Express server
-│   ├── config/             # Supabase & DB connections
-│   ├── controllers/        # Business logic for routes
+│   ├── config/             # MongoDB & Cloudinary connections
+│   ├── controllers/        # Mongoose-based business logic
+│   ├── models/             # Mongoose Schemas (User, LawyerProfile, etc.)
 │   ├── routes/             # API endpoint definitions
-│   ├── middlewares/        # Auth, Multer, & RBAC (Consolidated)
+│   ├── middlewares/        # JWT Auth & Multer-Cloudinary logic
 │   ├── services/           # AI analysis logic
-│   ├── scripts/            # Database seeding & utility scripts
-│   └── .env                # Backend secrets (API Keys, DB URLs)
+│   └── .env                # MONGO_URI, JWT_SECRET, Cloudinary Keys
 └── .gitignore              # Unified ignore rules
 ```
-
----
-
-## 🔄 Project Workflow
-
-### 1. Client Journey
-- **Identify**: Uses "Smart Search" to describe a legal problem.
-- **Match**: AI classifies the case and suggests relevant lawyers.
-- **Consult**: Views detailed profiles (bio, fees, experience) and books an appointment.
-
-### 2. Lawyer Journey
-- **Register**: Creates an account and submits profile details (Bar License, Specialization).
-- **Verify**: Remains "Pending" until an administrator reviews their credentials.
-- **Manage**: Uses the dashboard to track appointments and interact with clients.
-
-### 3. Admin Journey
-- **Moderate**: Monitors the verification queue for new lawyer applications.
-- **Govern**: Approves or rejects lawyers based on document verification.
-- **Analytics**: Views platform-wide stats (total cases, specialization trends).
 
 ---
 
@@ -94,7 +75,8 @@ pLawo/
 
 ### Prerequisites
 - Node.js (v18+)
-- Supabase Project (URL & Service Role Key)
+- MongoDB Atlas Cluster (Connection URI)
+- Cloudinary Account (Cloud Name, API Key, Secret)
 - OpenAI API Key
 
 ### Installation
@@ -105,47 +87,44 @@ pLawo/
     cd pLawo
     ```
 
-2.  **Review Requirements**:
-    Check the [requirements.txt](requirements.txt) file in the root directory for a full list of dependencies and system requirements.
-
-3.  **Backend Setup**:
+2.  **Backend Setup**:
     ```bash
     cd backend
     npm install
-    # Set up your .env file with backend secrets
+    # Set up .env with MONGO_URI, JWT_SECRET, and Cloudinary keys
     npm run dev
     ```
 
-4.  **Frontend Setup**:
+3.  **Frontend Setup**:
     ```bash
     cd ../frontend
     npm install
-    # Set up your .env file with frontend keys
+    # Set up .env with VITE_API_URL
     npm run dev
     ```
 
-### Seeding Data
-To populate the platform with initial data, run these commands in the `backend/` directory:
-- `node scripts/seedLawyers.js` (Populates mock lawyers)
-- `node scripts/seedAuthAdmin.js` (Creates the default admin: `admin@demo.com` / `password123`)
+### Initial Admin Setup
+To create your first admin user, run the following command in the `backend/` directory:
+- `node scripts/createAdmin.js`
+- Default Credentials: `admin@plawo.com` / `Admin123!`
 
 ---
 
 ## 🛡️ Security
-- **Email Confirmation**: Supabase Auth integration requiring verified email activation.
-- **JWT Protection**: All sensitive routes are protected by Supabase Auth tokens.
-- **RBAC**: Middleware ensures only authorized roles (ADMIN, LAWYER) can access specific endpoints.
-- **Private Storage**: Bar Council Licenses are stored in private buckets and only accessible to admins via temporary signed URLs.
-- **Secrets Management**: All API keys are excluded from version control via `.gitignore`.
+- **JWT Authentication**: Secure stateless authentication using JSON Web Tokens.
+- **Password Hashing**: Industry-standard encryption using Bcryptjs.
+- **Role-Based Access Control (RBAC)**: Backend middleware ensures only authorized roles can access sensitive API endpoints.
+- **Cloud Storage**: Secure handling of professional documents via Cloudinary.
+- **Environment Safety**: Sensitive keys are strictly managed via `.env` and never committed to version control.
 
 ---
 
 ## ✨ Key Features
 - ✅ **AI Legal Classifier**: Maps user queries to specific Pakistani Legal Acts.
+- ✅ **Cloud-Native Storage**: Immediate upload of licenses and photos to Cloudinary.
 - ✅ **Omniscient Admin Dashboard**: Live revenue tracking and global appointment activity.
-- ✅ **Hardened Review System**: Prevents duplicate reviews and ensures database-accurate ratings.
-- ✅ **Professional Local Context**: 25+ cities supported with PKR localization.
-- ✅ **Automatic Availability**: Dynamic 1-hour slot generation with conflict prevention.
+- ✅ **Mongoose Middlewares**: Automatic lawyer rating calculations on review submission.
+- ✅ **Professional Local Context**: 25+ Pakistani cities supported with PKR localization.
 
 ---
 

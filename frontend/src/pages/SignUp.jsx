@@ -8,7 +8,6 @@ import { Label } from '../components/ui/label';
 import { Scale, User, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import { authApi } from '../services/api';
-import { supabase } from '../config/supabaseClient';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -63,25 +62,13 @@ export default function SignUp() {
 
     setIsSubmitting(true);
     try {
-      // 1. Sign up with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            name: formData.name,
-            role: role.toUpperCase(), // 'CLIENT' or 'LAWYER'
-          }
-        }
-      });
+      // Create FormData to handle all fields and files in one go
+      const registerData = new FormData();
+      registerData.append('name', formData.name);
+      registerData.append('email', formData.email);
+      registerData.append('password', formData.password);
+      registerData.append('role', role.toUpperCase());
 
-      if (authError) throw authError;
-
-      if (!authData.user) {
-        throw new Error('User creation failed');
-      }
-
-      // 2. If Lawyer, we need to save the extra profile info to the backend
       if (role === 'lawyer') {
         if (!formData.city || !formData.specialization || !barLicenseFile || !formData.officeAddress) {
           toast.error("Please fill in all fields and upload your Bar License");
@@ -89,30 +76,33 @@ export default function SignUp() {
           return;
         }
 
-        const profileForm = new FormData();
-        profileForm.append('userId', authData.user.id);
-        profileForm.append('name', formData.name);
-        profileForm.append('email', formData.email);
-        profileForm.append('city', formData.city);
-        profileForm.append('specialization', formData.specialization);
-        profileForm.append('fees', formData.fees);
-        profileForm.append('bio', formData.bio);
-        profileForm.append('yearsOfExperience', formData.yearsOfExperience);
-        profileForm.append('education', formData.education);
-        profileForm.append('barLicenseNumber', formData.barLicenseNumber);
-        profileForm.append('officeAddress', formData.officeAddress);
+        registerData.append('city', formData.city);
+        registerData.append('specialization', formData.specialization);
+        registerData.append('fees', formData.fees);
+        registerData.append('bio', formData.bio);
+        registerData.append('yearsOfExperience', formData.yearsOfExperience);
+        registerData.append('education', formData.education);
+        registerData.append('barLicenseNumber', formData.barLicenseNumber);
+        registerData.append('officeAddress', formData.officeAddress);
         
         if (profilePhoto) {
-          profileForm.append('profilePhoto', profilePhoto);
+          registerData.append('profilePhoto', profilePhoto);
         }
         if (barLicenseFile) {
-          profileForm.append('barLicenseFile', barLicenseFile);
+          registerData.append('barLicenseFile', barLicenseFile);
         }
-
-        await authApi.completeLawyerProfile(profileForm);
       }
+
+      // 1. Register with our backend API
+      const data = await authApi.register(registerData, true);
       
-      toast.success('Registration initiated!');
+      const { token, user } = data;
+
+      // 2. Store token and user info
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      toast.success(data.message || 'Registration successful!');
       setIsSubmitted(true);
     } catch (err) {
       console.error("Signup Error:", err);
@@ -123,6 +113,9 @@ export default function SignUp() {
   };
 
   if (isSubmitted) {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const dashboardPath = user?.role === 'ADMIN' ? '/admin' : (user?.role === 'LAWYER' ? '/lawyer-dashboard' : '/client-dashboard');
+    
     return (
       <div className="min-h-screen bg-[#FDFDFD] flex items-center justify-center px-4 py-12">
         <motion.div
@@ -135,17 +128,16 @@ export default function SignUp() {
               <Scale className="w-10 h-10 text-[#a47731]" />
             </div>
             <h2 className="text-3xl font-['Playfair_Display'] text-[#1e293b] mb-4">
-              Check Your Email
+              Welcome to pLawo
             </h2>
             <p className="text-[#64748b] leading-relaxed mb-8">
-              We've sent a verification link to <span className="font-semibold text-[#1e293b]">{formData.email}</span>. 
-              Please click the link to activate your account and access pLawo.
+              Your account has been created successfully. You can now start using the platform.
             </p>
             <Button 
               className="w-full bg-[#a47731] hover:bg-[#8d6629] text-white"
-              onClick={() => navigate('/signin')}
+              onClick={() => navigate(dashboardPath)}
             >
-              Return to Sign In
+              Go to Dashboard
             </Button>
           </Card>
         </motion.div>

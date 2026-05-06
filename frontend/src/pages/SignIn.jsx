@@ -7,7 +7,7 @@ import { Button } from '../components/ui/button';
 import { Label } from '../components/ui/label';
 import { Scale } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '../config/supabaseClient';
+import { authApi } from '../services/api';
 
 export default function SignIn() {
   const navigate = useNavigate();
@@ -25,44 +25,16 @@ export default function SignIn() {
 
     setIsSubmitting(true);
     try {
-      // 1. Sign in with Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) throw error;
+      // 1. Sign in with our backend API
+      const data = await authApi.login(email, password);
       
-      const user = data.user;
-      if (!user) throw new Error('Login failed: No user data returned');
-
-      // 2. Fetch role from public.users table
-      const { data: dbUser, error: roleError } = await supabase
-        .from('users')
-        .select('role, name')
-        .eq('id', user.id)
-        .maybeSingle(); // Use maybeSingle to avoid 406 if profile doesn't exist yet
+      const { token, user } = data;
       
-      if (roleError) {
-        console.error("Database fetch error:", roleError);
-        throw new Error('Could not fetch user profile. Please check if your account is fully set up.');
-      }
+      // 2. Store token and user info
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
 
-      if (!dbUser) {
-        throw new Error('User profile not found. If you just signed up, please wait a few seconds for the system to sync.');
-      }
-
-      const role = dbUser.role || 'CLIENT';
-      
-      // Store user info for easy access
-      const userData = {
-        id: user.id,
-        email: user.email,
-        name: dbUser.name || user.email,
-        role: role
-      };
-      
-      localStorage.setItem('user', JSON.stringify(userData));
+      const role = user.role;
 
       toast.success('Signed in successfully!');
 

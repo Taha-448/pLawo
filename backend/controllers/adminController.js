@@ -1,5 +1,12 @@
-const { supabase } = require('../config/supabase');
+const User = require('../models/User');
+const Appointment = require('../models/Appointment');
+const LawyerProfile = require('../models/LawyerProfile');
 
+// ─────────────────────────────────────────────────────────────────────────────
+// adminDashboard
+// Fetches high-level stats, pending verifications, and platform activity.
+// Replaces multiple Supabase count/select calls with optimized Mongoose queries.
+// ─────────────────────────────────────────────────────────────────────────────
 const adminDashboard = async (req, res) => {
   try {
     const { timeRange = '6months' } = req.query;
@@ -15,47 +22,52 @@ const adminDashboard = async (req, res) => {
       startDate = new Date(0);
     }
 
-    const isoStartDate = startDate.toISOString();
-
     const [
-      { count: totalLawyers },
-      { count: totalClients },
-      { count: totalAppointments },
-      { data: pendingLawyers },
-      { data: appointments },
-      { data: globalActivity }
+      totalLawyers,
+      totalClients,
+      totalAppointments,
+      pendingLawyers,
+      appointmentsForTrend,
+      globalActivity
     ] = await Promise.all([
-      supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'LAWYER'),
-      supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'CLIENT'),
-      supabase.from('appointments').select('*', { count: 'exact', head: true }).gte('date', isoStartDate),
-      supabase.from('users').select('*, lawyer_profile:lawyer_profiles!inner(*)').eq('role', 'LAWYER').eq('lawyer_profiles.is_verified', false),
-      supabase.from('appointments').select(`
-        date,
-        lawyer:users!appointments_lawyer_id_fkey(
-          lawyer_profile:lawyer_profiles(specialization, fees)
-        )
-      `).gte('date', isoStartDate),
-      supabase.from('appointments').select(`
-        id,
-        date,
-        time,
-        status,
-        legal_issue,
-        client:users!appointments_client_id_fkey(name),
-        lawyer:users!appointments_lawyer_id_fkey(name)
-      `).order('created_at', { ascending: false }).limit(10)
+      User.countDocuments({ role: 'LAWYER' }),
+      User.countDocuments({ role: 'CLIENT' }),
+      Appointment.countDocuments({ date: { $gte: startDate } }),
+      User.find({ role: 'LAWYER' }).populate({
+        path: 'lawyer_profile',
+        match: { is_verified: false }
+      }).then(users => users.filter(u => u.lawyer_profile)), // Filter out those whose profile is verified
+      Appointment.find({ date: { $gte: startDate } })
+        .populate({
+          path: 'lawyer_id',
+          populate: { path: 'lawyer_profile' }
+        }),
+      Appointment.find()
+        .populate('client_id', 'name')
+        .populate('lawyer_id', 'name')
+        .sort({ createdAt: -1 })
+        .limit(10)
     ]);
 
-    // Monthly Trend
+    // ─────────────────────────────────────────────────────────────────────────
+    // DATA PROCESSING (Trends & Distributions)
+    // ─────────────────────────────────────────────────────────────────────────
     const monthlyTrendMap = {};
     let totalRevenue = 0;
+    const specializationMap = {};
     
-    appointments?.forEach(apt => {
+    appointmentsForTrend.forEach(apt => {
+      // Monthly Trend
       const month = new Date(apt.date).toLocaleString('default', { month: 'short' });
       monthlyTrendMap[month] = (monthlyTrendMap[month] || 0) + 1;
       
-      // Calculate revenue from booked fees
-      totalRevenue += (apt.lawyer?.lawyer_profile?.fees || 0);
+      // Revenue calculation (from booked fees)
+      const fee = apt.lawyer_id?.lawyer_profile?.fees || 0;
+      totalRevenue += fee;
+
+      // Specialization Distribution
+      const spec = apt.lawyer_id?.lawyer_profile?.specialization || 'General';
+      specializationMap[spec] = (specializationMap[spec] || 0) + 1;
     });
 
     const monthlyTrend = Object.keys(monthlyTrendMap).map(month => ({
@@ -63,16 +75,20 @@ const adminDashboard = async (req, res) => {
       count: monthlyTrendMap[month]
     }));
 
-    // Specialization Distribution
-    const specializationMap = {};
-    appointments?.forEach(apt => {
-      const spec = apt.lawyer?.lawyer_profile?.specialization || 'General';
-      specializationMap[spec] = (specializationMap[spec] || 0) + 1;
-    });
-
     const specializationDistribution = Object.keys(specializationMap).map(name => ({
       name,
       value: specializationMap[name]
+    }));
+
+    // Format global activity for frontend
+    const formattedActivity = globalActivity.map(act => ({
+      id: act._id,
+      date: act.date,
+      time: act.time,
+      status: act.status,
+      legal_issue: act.legal_issue,
+      client: { name: act.client_id?.name || 'Deleted User' },
+      lawyer: { name: act.lawyer_id?.name || 'Deleted User' }
     }));
 
     res.status(200).json({ 
@@ -84,7 +100,7 @@ const adminDashboard = async (req, res) => {
         totalRevenue,
         monthlyTrend,
         specializationDistribution,
-        globalActivity: globalActivity || []
+        globalActivity: formattedActivity
       },
       pendingLawyers
     });
@@ -94,24 +110,21 @@ const adminDashboard = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// verifyLawyer
+// Approves a lawyer's profile so they appear in search results.
+// ─────────────────────────────────────────────────────────────────────────────
 const verifyLawyer = async (req, res) => {
   try {
     const { lawyerId } = req.params;
     
-    const { data: profile, error: findError } = await supabase
-      .from('lawyer_profiles')
-      .select('id')
-      .eq('user_id', lawyerId)
-      .single();
+    const profile = await LawyerProfile.findOneAndUpdate(
+      { user_id: lawyerId },
+      { is_verified: true },
+      { new: true }
+    );
 
-    if (findError || !profile) return res.status(404).json({ message: 'Lawyer profile not found' });
-
-    const { error: updateError } = await supabase
-      .from('lawyer_profiles')
-      .update({ is_verified: true, updated_at: new Date().toISOString() })
-      .eq('user_id', lawyerId);
-
-    if (updateError) throw updateError;
+    if (!profile) return res.status(404).json({ message: 'Lawyer profile not found' });
     
     res.status(200).json({ message: 'Lawyer successfully verified' });
   } catch (error) {
@@ -120,30 +133,28 @@ const verifyLawyer = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// getLicenseUrl
+// Note: This logic depends on the storage layer. For now, it returns the 
+// stored path. Proper signed URLs will be added in the storage step.
+// ─────────────────────────────────────────────────────────────────────────────
 const getLicenseUrl = async (req, res) => {
   try {
     const { lawyerId } = req.params;
-    const { getSignedUrl } = require('../utils/storageUtils');
 
     // Security: Only the lawyer themselves or an admin can see the license
     if (req.user.role !== 'ADMIN' && req.user.userId !== lawyerId) {
       return res.status(403).json({ message: 'Unauthorized access to document' });
     }
 
-    const { data: profile, error } = await supabase
-      .from('lawyer_profiles')
-      .select('bar_license_file')
-      .eq('user_id', lawyerId)
-      .single();
+    const profile = await LawyerProfile.findOne({ user_id: lawyerId }).select('bar_license_file');
 
-    if (error || !profile?.bar_license_file) {
+    if (!profile || !profile.bar_license_file) {
       return res.status(404).json({ message: 'License file not found' });
     }
 
-    // Generate signed URL (expires in 1 hour as per storageUtils)
-    const signedUrl = await getSignedUrl('bar-licenses', profile.bar_license_file);
-    
-    res.status(200).json({ url: signedUrl });
+    // Placeholder for storage integration
+    res.status(200).json({ url: profile.bar_license_file });
   } catch (error) {
     console.error('Error getting license URL:', error);
     res.status(500).json({ message: 'Server error getting license URL' });

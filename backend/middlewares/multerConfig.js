@@ -1,7 +1,5 @@
 const multer = require('multer');
-
-// Use memory storage instead of disk storage for Supabase uploads
-const storage = multer.memoryStorage();
+const { storage } = require('../config/cloudinary');
 
 /**
  * Filter for image and PDF files
@@ -19,7 +17,7 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit for PDFs
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
   fileFilter: fileFilter
 });
 

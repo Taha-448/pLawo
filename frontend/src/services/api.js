@@ -1,10 +1,7 @@
-import { supabase } from '../config/supabaseClient';
-
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-const getAuthHeaders = async (isMultipart = false) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
+const getAuthHeaders = (isMultipart = false) => {
+  const token = localStorage.getItem('token');
   const headers = {};
   if (!isMultipart) {
     headers['Content-Type'] = 'application/json';
@@ -19,7 +16,7 @@ export const searchApi = {
   smartSearch: async (description) => {
     const response = await fetch(`${API_URL}/search/smart`, {
       method: 'POST',
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify({ description }),
     });
     if (!response.ok) {
@@ -31,36 +28,43 @@ export const searchApi = {
 };
 
 export const authApi = {
-  // Now only handles backend syncing/profile completion
-  completeLawyerProfile: async (formData) => {
-    const response = await fetch(`${API_URL}/auth/register-lawyer`, {
+  login: async (email, password) => {
+    const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
-      headers: await getAuthHeaders(true),
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message || 'Failed to complete lawyer profile');
-    }
-    return response.json();
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Login failed');
+    return data;
+  },
+  register: async (formData, isMultipart = false) => {
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: getAuthHeaders(isMultipart),
+      body: isMultipart ? formData : JSON.stringify(formData),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Registration failed');
+    return data;
   }
 };
 
 export const lawyerApi = {
   getLawyers: async () => {
-    const response = await fetch(`${API_URL}/lawyers`, { headers: await getAuthHeaders() });
+    const response = await fetch(`${API_URL}/lawyers`, { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch lawyers');
     return response.json();
   },
   getLawyerById: async (id) => {
-    const response = await fetch(`${API_URL}/lawyers/${id}`, { headers: await getAuthHeaders() });
+    const response = await fetch(`${API_URL}/lawyers/${id}`, { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch lawyer profile');
     return response.json();
   },
   updateLawyerProfile: async (formData) => {
     const response = await fetch(`${API_URL}/lawyers/profile`, {
       method: 'PUT',
-      headers: await getAuthHeaders(true),
+      headers: getAuthHeaders(true),
       body: formData,
     });
     if (!response.ok) {
@@ -75,7 +79,7 @@ export const appointmentApi = {
   create: async (data) => {
     const response = await fetch(`${API_URL}/appointments`, {
       method: 'POST',
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -85,7 +89,7 @@ export const appointmentApi = {
     return response.json();
   },
   getMyAppointments: async () => {
-    const response = await fetch(`${API_URL}/appointments`, { headers: await getAuthHeaders() });
+    const response = await fetch(`${API_URL}/appointments`, { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch appointments');
     return response.json();
   },
@@ -97,7 +101,7 @@ export const appointmentApi = {
   updateStatus: async (id, status) => {
     const response = await fetch(`${API_URL}/appointments/${id}/status`, {
       method: 'PUT',
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify({ status }),
     });
     if (!response.ok) throw new Error('Failed to update status');
@@ -107,21 +111,21 @@ export const appointmentApi = {
 
 export const adminApi = {
   getDashboard: async (timeRange = '6months') => {
-    const response = await fetch(`${API_URL}/admin/dashboard?timeRange=${timeRange}`, { headers: await getAuthHeaders() });
+    const response = await fetch(`${API_URL}/admin/dashboard?timeRange=${timeRange}`, { headers: getAuthHeaders() });
     if (!response.ok) throw new Error('Failed to fetch dashboard stats');
     return response.json();
   },
   verifyLawyer: async (id) => {
     const response = await fetch(`${API_URL}/admin/verify/${id}`, {
       method: 'PUT',
-      headers: await getAuthHeaders()
+      headers: getAuthHeaders()
     });
     if (!response.ok) throw new Error('Failed to verify lawyer');
     return response.json();
   },
   getLicenseUrl: async (lawyerId) => {
     const response = await fetch(`${API_URL}/admin/license/${lawyerId}`, {
-      headers: await getAuthHeaders()
+      headers: getAuthHeaders()
     });
     if (!response.ok) throw new Error('Failed to fetch license URL');
     return response.json();
@@ -137,7 +141,7 @@ export const availabilityApi = {
   setAvailability: async (availability) => {
     const response = await fetch(`${API_URL}/availability`, {
       method: 'POST',
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify({ availability }),
     });
     if (!response.ok) {
@@ -152,7 +156,7 @@ export const reviewApi = {
   create: async (data) => {
     const response = await fetch(`${API_URL}/reviews`, {
       method: 'POST',
-      headers: await getAuthHeaders(),
+      headers: getAuthHeaders(),
       body: JSON.stringify(data),
     });
     if (!response.ok) {

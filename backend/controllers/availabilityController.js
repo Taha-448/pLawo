@@ -1,23 +1,23 @@
-const { supabase } = require('../config/supabase');
+const Availability = require('../models/Availability');
 
+// ─────────────────────────────────────────────────────────────────────────────
+// setAvailability
+// Deletes a lawyer's old schedule and replaces it with a new one.
+// Expects an array of slots: { day_of_week, start_time, end_time }
+// ─────────────────────────────────────────────────────────────────────────────
 const setAvailability = async (req, res) => {
   try {
     const lawyerId = req.user.userId;
-    const { availability } = req.body; // Expecting array of { dayOfWeek, startTime, endTime }
+    const { availability } = req.body;
 
     if (!Array.isArray(availability)) {
       return res.status(400).json({ message: 'Availability must be an array' });
     }
 
     // 1. Delete existing availability for this lawyer
-    const { error: deleteError } = await supabase
-      .from('availability')
-      .delete()
-      .eq('lawyer_id', lawyerId);
+    await Availability.deleteMany({ lawyer_id: lawyerId });
 
-    if (deleteError) throw deleteError;
-
-    // 2. Insert new availability
+    // 2. Prepare and Insert new availability
     const availabilityToInsert = availability.map(slot => ({
       lawyer_id: lawyerId,
       day_of_week: slot.day_of_week,
@@ -25,12 +25,7 @@ const setAvailability = async (req, res) => {
       end_time: slot.end_time
     }));
 
-    const { data, error: insertError } = await supabase
-      .from('availability')
-      .insert(availabilityToInsert)
-      .select();
-
-    if (insertError) throw insertError;
+    const data = await Availability.insertMany(availabilityToInsert);
 
     res.status(200).json({ message: 'Availability updated successfully', data });
   } catch (error) {
@@ -39,18 +34,16 @@ const setAvailability = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// getLawyerAvailability
+// Returns the weekly schedule for a specific lawyer, sorted by day and time.
+// ─────────────────────────────────────────────────────────────────────────────
 const getLawyerAvailability = async (req, res) => {
   try {
     const { lawyerId } = req.params;
 
-    const { data: availability, error } = await supabase
-      .from('availability')
-      .select('*')
-      .eq('lawyer_id', lawyerId)
-      .order('day_of_week', { ascending: true })
-      .order('start_time', { ascending: true });
-
-    if (error) throw error;
+    const availability = await Availability.find({ lawyer_id: lawyerId })
+      .sort({ day_of_week: 1, start_time: 1 });
 
     res.status(200).json(availability);
   } catch (error) {

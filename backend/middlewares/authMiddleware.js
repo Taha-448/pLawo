@@ -1,7 +1,14 @@
-const { supabase } = require('../config/supabase');
+const jwt = require('jsonwebtoken');
 
-const authenticateUser = async (req, res, next) => {
+// ─────────────────────────────────────────────────────────────────────────────
+// authenticateUser
+// Reads the Bearer token from the Authorization header, verifies it with
+// JWT, and attaches { userId, role } to req.user for downstream controllers.
+// Replaces the old Supabase supabase.auth.getUser(token) call.
+// ─────────────────────────────────────────────────────────────────────────────
+const authenticateUser = (req, res, next) => {
   const authHeader = req.headers.authorization;
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Authentication invalid or missing token' });
   }
@@ -9,33 +16,20 @@ const authenticateUser = async (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    // 1. Verify token with Supabase
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-
-    if (error || !user) {
-      return res.status(401).json({ message: 'Authentication invalid' });
-    }
-
-    // 2. Fetch role from our public.users table
-    const { data: dbUser, error: dbError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (dbError || !dbUser) {
-      return res.status(401).json({ message: 'User not found in database' });
-    }
-
-    // Attach user payload to the request object
-    req.user = { userId: user.id, role: dbUser.role };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Attach same shape as before so all controllers work without changes
+    req.user = { userId: decoded.userId, role: decoded.role };
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
-    return res.status(401).json({ message: 'Authentication invalid' });
+    return res.status(401).json({ message: 'Authentication invalid or token expired' });
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// requireAdmin
+// Middleware to restrict routes to ADMIN role only. Must run after
+// authenticateUser so req.user is already populated.
+// ─────────────────────────────────────────────────────────────────────────────
 const requireAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== 'ADMIN') {
     return res.status(403).json({ message: 'Access denied: Requires Admin privileges' });
@@ -43,7 +37,4 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = {
-  authenticateUser,
-  requireAdmin
-};
+module.exports = { authenticateUser, requireAdmin };

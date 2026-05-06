@@ -2,8 +2,6 @@ import { Link, useNavigate } from 'react-router';
 import { Scale, User, Menu, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { useState, useEffect } from 'react';
-import { supabase } from '../config/supabaseClient';
-
 export default function Navigation() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -16,31 +14,14 @@ export default function Navigation() {
       setCurrentUser(JSON.parse(userStr));
     }
 
-    // Listen for Supabase auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        setCurrentUser(null);
-        localStorage.removeItem('user');
-      } else if (event === 'SIGNED_IN' && session) {
-        // Sync role from session metadata if available
-        const role = session.user.user_metadata?.role || 'CLIENT';
-        const userObj = {
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.user_metadata?.name,
-          role: role
-        };
-        setCurrentUser(userObj);
-        localStorage.setItem('user', JSON.stringify(userObj));
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    // Since we're using plain localStorage now, the component will re-mount 
+    // on route changes from SignIn/SignUp, so initial load is sufficient.
+    // However, if we need cross-tab sync, we could listen for 'storage' events.
   }, []);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
+  const handleSignOut = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     setCurrentUser(null);
     navigate('/');
   };

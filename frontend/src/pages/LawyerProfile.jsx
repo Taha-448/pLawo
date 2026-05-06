@@ -41,7 +41,7 @@ export default function LawyerProfile() {
           bio: data.lawyer_profile?.bio || '',
           consultationFee: data.lawyer_profile?.fees || 0,
           verified: data.lawyer_profile?.is_verified || false,
-          rating: data.lawyer_profile?.rating || 4.8,
+          rating: data.lawyer_profile?.rating || 0.0,
           yearsOfExperience: data.lawyer_profile?.years_of_experience || 5,
           education: data.lawyer_profile?.education || "Not specified",
           barLicenseNumber: data.lawyer_profile?.bar_license_number || "Not specified",

@@ -1,30 +1,40 @@
-# pLawo Project Requirements
+# pLawo Project Requirements (MERN Stack Edition)
 # This project uses Node.js for both frontend and backend.
 # Run 'npm install' in both /backend and /frontend directories to install dependencies.
 
 ## System Requirements
-node >= 18.0.0
-npm >= 9.0.0
+- Node.js >= 18.0.0
+- npm >= 9.0.0
+- MongoDB Atlas Cluster
+- Cloudinary Account
+- OpenAI API Key
 
-## Backend Dependencies (located in /backend/package.json)
-@supabase/supabase-js >= 2.103.3
-cors >= 2.8.6
-dotenv >= 17.4.0
-express >= 5.2.1
-helmet >= 8.1.0
-multer >= 2.1.1
-openai >= 6.34.0
-nodemon >= 3.1.14 (dev)
+## Backend Dependencies (MERN)
+- mongoose: ^9.6.1 (Database ODM)
+- bcryptjs: ^3.0.3 (Auth Hashing)
+- jsonwebtoken: ^9.0.3 (JWT Auth)
+- express: ^5.2.1 (Server Framework)
+- cloudinary: ^1.41.3 (Cloud Storage)
+- multer-storage-cloudinary: ^4.0.0 (Cloudinary integration)
+- openai: ^6.34.0 (AI Smart Search)
+- dotenv: ^17.4.0 (Environment Management)
+- cors: ^2.8.6
+- helmet: ^8.1.0
+- nodemon: ^3.1.14 (Dev only)
 
-## Frontend Dependencies (located in /frontend/package.json)
-react >= 18.3.1
-react-dom >= 18.3.1
-vite >= 6.3.5
-@supabase/supabase-js >= 2.103.3
-lucide-react >= 0.487.0
-framer-motion >= 12.23.24
-recharts >= 2.15.2
-@mui/material >= 7.3.5
-@radix-ui/react-navigation-menu >= 1.2.5
-tailwind-merge >= 3.2.0
-clsx >= 2.1.1
+## Frontend Dependencies
+- react: 19.x (Vite)
+- react-router: 7.x
+- motion: 12.x (Framer Motion)
+- lucide-react: 0.487.0
+- recharts: 2.15.2 (Admin Analytics)
+- sonner: 2.0.3 (Toast Notifications)
+- tailwindcss: 4.x
+- @mui/material: 7.3.5
+- @radix-ui/react components (UI Primitives)
+- class-variance-authority: 0.7.1
+- tailwind-merge: 3.2.0
+
+## Deployment Notes
+- Use the 'node scripts/createAdmin.js' script to set up your initial admin user.
+- Ensure all environment variables in both .env files are correctly set before starting.
