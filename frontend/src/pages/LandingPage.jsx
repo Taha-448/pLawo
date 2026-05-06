@@ -36,72 +36,76 @@ export default function LandingPage() {
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#a47731]/5 rounded-full blur-3xl -z-10" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#1e293b]/5 rounded-full blur-3xl -z-10" />
-
-        <div className="max-w-5xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-['Playfair_Display'] text-[#1e293b] mb-6 leading-tight">
-              Find Your Perfect
-              <span className="block text-[#a47731]">Legal Counsel</span>
-            </h1>
-            <p className="text-lg md:text-xl text-[#64748b] mb-12 max-w-2xl mx-auto">
-              Describe your legal issue in plain English; our AI handles the vetting.
-            </p>
-          </motion.div>
-
-          {/* Search Bar */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative max-w-3xl mx-auto"
-          >
-            <div className="relative flex flex-col md:flex-row gap-3 p-3 bg-white rounded-2xl shadow-2xl border border-[#1e293b]/10">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#64748b]" />
-                <Input
-                  type="text"
-                  placeholder="e.g., I need help with a property dispute in Lahore..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  className="pl-12 pr-4 py-6 text-base border-0 focus-visible:ring-0 bg-transparent"
-                  disabled={isSearching}
-                />
-              </div>
-              <Button
-                onClick={handleSearch}
-                disabled={isSearching || !searchQuery.trim()}
-                className="bg-[#a47731] hover:bg-[#8d6629] text-white px-8 py-6 rounded-xl h-auto"
-              >
-                {isSearching ? (
-                  <>
-                    <Sparkles className="w-5 h-5 mr-2 animate-spin" />
-                    Analyzing Case...
-                  </>
-                ) : (
-                  <>
-                    Analyze Case
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </>
-                )}
-              </Button>
-            </div>
-
-            {isSearching && (
+        
+        <div className="container">
+          <div className="row justify-content-center">
+            <div className="col-12 text-center">
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-4 text-sm text-[#64748b] flex items-center justify-center gap-2"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
               >
-                <div className="w-2 h-2 bg-[#a47731] rounded-full animate-pulse" />
-                Scanning legal database and matching with verified counsel...
+                <h1 className="text-4xl md:text-6xl lg:text-7xl font-['Playfair_Display'] text-[#1e293b] mb-6 leading-tight">
+                  Find Your Perfect
+                  <span className="block text-[#a47731]">Legal Counsel</span>
+                </h1>
+                <p className="text-lg md:text-xl text-[#64748b] mb-12 max-w-2xl mx-auto">
+                  Describe your legal issue in plain English; our AI handles the vetting.
+                </p>
               </motion.div>
-            )}
-          </motion.div>
+
+              {/* Search Bar */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="relative max-w-3xl mx-auto"
+              >
+                <div className="relative flex flex-col md:flex-row gap-3 p-3 bg-white rounded-2xl shadow-2xl border border-[#1e293b]/10 items-center">
+                  <div className="relative flex-1 w-full">
+                    <Search className="absolute !left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-[#64748b] z-10" />
+                    <Input
+                      type="text"
+                      placeholder="e.g., I need help with a property dispute in Lahore..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                      className="!pl-16 !pr-4 !py-7 text-base border-0 focus-visible:ring-0 bg-transparent w-full"
+                      disabled={isSearching}
+                    />
+                  </div>
+                  <Button
+                    onClick={handleSearch}
+                    disabled={isSearching || !searchQuery.trim()}
+                    className="bg-[#a47731] hover:bg-[#8d6629] text-white px-8 py-7 rounded-xl h-auto w-full md:w-auto"
+                  >
+                    {isSearching ? (
+                      <>
+                        <Sparkles className="w-5 h-5 mr-2 animate-spin" />
+                        Analyzing Case...
+                      </>
+                    ) : (
+                      <>
+                        Analyze Case
+                        <ArrowRight className="w-5 h-5 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {isSearching && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="mt-4 text-sm text-[#64748b] flex items-center justify-center gap-2"
+                  >
+                    <div className="w-2 h-2 bg-[#a47731] rounded-full animate-pulse" />
+                    Scanning legal database and matching with verified counsel...
+                  </motion.div>
+                )}
+              </motion.div>
+            </div>
+          </div>
         </div>
       </section>
 

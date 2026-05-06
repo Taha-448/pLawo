@@ -36,7 +36,7 @@ export default function Navigation() {
 
   return (
     <nav className="sticky top-0 z-50 bg-[#FDFDFD] border-b border-[#1e293b]/10 backdrop-blur-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="container">
         <div className="flex justify-between items-center h-20">
           <Link to="/" className="flex items-center gap-2 group">
             <div className="w-10 h-10 rounded-full bg-[#a47731] flex items-center justify-center">
@@ -49,7 +49,8 @@ export default function Navigation() {
 
           <div className="hidden md:flex items-center gap-8">
             <Link to="/search" className="text-[#1e293b] hover:text-[#a47731] transition-colors font-medium">Expertise</Link>
-            <Link to="/#about" className="text-[#1e293b] hover:text-[#a47731] transition-colors font-medium">The Firm</Link>
+            <Link to="/resources" className="text-[#1e293b] hover:text-[#a47731] transition-colors font-medium">Resources</Link>
+            <Link to="/contact" className="text-[#1e293b] hover:text-[#a47731] transition-colors font-medium">Contact</Link>
             
             {currentUser ? (
               <>

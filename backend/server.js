@@ -48,6 +48,7 @@ app.use('/api/lawyers', lawyerRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/misc', require('./routes/miscRoutes'));
 
 // Basic Route
 app.get('/', (req, res) => {

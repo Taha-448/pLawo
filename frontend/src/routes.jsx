@@ -9,6 +9,9 @@ import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
 import NotFound from './pages/NotFound';
 
+import LegalResources from './pages/LegalResources';
+import ContactUs from './pages/ContactUs';
+
 // Helper to protect routes
 const ProtectedRoute = ({ children, allowedRole }) => {
   const userStr = localStorage.getItem('user');
@@ -34,6 +37,14 @@ export const router = createBrowserRouter([
   {
     path: '/lawyer/:id',
     Component: LawyerProfile,
+  },
+  {
+    path: '/resources',
+    Component: LegalResources,
+  },
+  {
+    path: '/contact',
+    Component: ContactUs,
   },
   {
     path: '/client-dashboard',

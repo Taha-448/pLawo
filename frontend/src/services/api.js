@@ -171,3 +171,21 @@ export const reviewApi = {
     return response.json();
   }
 };
+
+export const miscApi = {
+  getResources: async () => {
+    const response = await fetch(`${API_URL}/misc/resources`, { headers: getAuthHeaders() });
+    if (!response.ok) throw new Error('Failed to fetch resources');
+    return response.json();
+  },
+  submitContact: async (data) => {
+    const response = await fetch(`${API_URL}/misc/contact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message || 'Failed to send message');
+    return result;
+  }
+};
