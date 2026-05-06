@@ -71,6 +71,26 @@ pLawo/
 
 ---
 
+## 🌐 Deployment (Bonus Extra Credit)
+
+To earn the bonus marks, follow these steps to deploy your live website:
+
+### 1. Backend (Render.com)
+- Create a **Web Service** on Render.
+- Connect this GitHub repo.
+- **Root Directory**: `backend`
+- **Build Command**: `npm install`
+- **Start Command**: `node server.js`
+- **Environment Variables**: Add all keys from `backend/.env` (MONGO_URI, JWT_SECRET, etc.).
+
+### 2. Frontend (Vercel.com)
+- Create a **New Project** on Vercel.
+- Connect this GitHub repo.
+- **Root Directory**: `frontend`
+- **Environment Variable**: `VITE_API_URL` = (Your Render Service URL + `/api`).
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites
