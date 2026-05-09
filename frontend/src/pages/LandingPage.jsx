@@ -77,7 +77,7 @@ export default function LandingPage() {
                   <Button
                     onClick={handleSearch}
                     disabled={isSearching || !searchQuery.trim()}
-                    className="bg-[#a47731] hover:bg-[#8d6629] text-white px-8 py-7 rounded-xl h-auto w-full md:w-auto"
+                    className="bg-[#a47731] hover:bg-[#8d6629] text-white px-8 py-7 !rounded-lg h-auto w-full md:w-auto"
                   >
                     {isSearching ? (
                       <>

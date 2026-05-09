@@ -173,10 +173,10 @@ export default function ClientDashboard() {
           transition={{ delay: 0.4 }}
         >
           <Tabs defaultValue="all" className="space-y-6">
-            <TabsList className="bg-white border border-[#1e293b]/10">
-              <TabsTrigger value="all">All Appointments</TabsTrigger>
-              <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-              <TabsTrigger value="completed">Completed</TabsTrigger>
+            <TabsList className="bg-slate-100/50 p-1">
+              <TabsTrigger value="all" className="data-[state=active]:shadow-sm">All Appointments</TabsTrigger>
+              <TabsTrigger value="upcoming" className="data-[state=active]:shadow-sm">Upcoming</TabsTrigger>
+              <TabsTrigger value="completed" className="data-[state=active]:shadow-sm">Completed</TabsTrigger>
             </TabsList>
 
             <TabsContent value="all" className="space-y-4">
