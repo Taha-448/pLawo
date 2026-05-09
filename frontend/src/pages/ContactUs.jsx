@@ -101,7 +101,7 @@ export default function ContactUs() {
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        placeholder="John Doe"
+                        placeholder="Taha Anjum"
                         className="bg-white border-[#1e293b]/20"
                       />
                     </div>
@@ -112,7 +112,7 @@ export default function ContactUs() {
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        placeholder="john@example.com"
+                        placeholder="taha@plawo.com"
                         className="bg-white border-[#1e293b]/20"
                       />
                     </div>
