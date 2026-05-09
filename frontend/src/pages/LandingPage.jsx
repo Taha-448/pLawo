@@ -50,7 +50,7 @@ export default function LandingPage() {
                   <span className="block text-[#a47731]">Legal Counsel</span>
                 </h1>
                 <p className="text-lg md:text-xl text-[#64748b] mb-12 max-w-2xl mx-auto">
-                  Describe your legal issue in plain English; our AI handles the vetting.
+                  Describe your legal issue in plain English, our AI handles the vetting.
                 </p>
               </motion.div>
 

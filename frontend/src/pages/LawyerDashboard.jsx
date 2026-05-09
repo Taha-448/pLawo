@@ -308,10 +308,10 @@ export default function LawyerDashboard() {
           transition={{ delay: 0.5 }}
         >
           <Tabs defaultValue="appointments" className="space-y-6">
-            <TabsList className="bg-white border border-[#1e293b]/10">
-              <TabsTrigger value="appointments">Appointment Requests</TabsTrigger>
-              <TabsTrigger value="schedule">Manage Schedule</TabsTrigger>
-              <TabsTrigger value="profile">Profile Management</TabsTrigger>
+            <TabsList className="bg-slate-100/50 p-1">
+              <TabsTrigger value="appointments" className="data-[state=active]:shadow-sm">Appointment Requests</TabsTrigger>
+              <TabsTrigger value="schedule" className="data-[state=active]:shadow-sm">Manage Schedule</TabsTrigger>
+              <TabsTrigger value="profile" className="data-[state=active]:shadow-sm">Profile Management</TabsTrigger>
             </TabsList>
 
             {/* Appointments Tab */}

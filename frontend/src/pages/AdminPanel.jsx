@@ -209,10 +209,10 @@ export default function AdminPanel() {
           transition={{ delay: 0.5 }}
         >
           <Tabs defaultValue="verification" className="space-y-6">
-            <TabsList className="bg-white border border-[#1e293b]/10">
-              <TabsTrigger value="verification">Verification Queue</TabsTrigger>
-              <TabsTrigger value="activity">Platform Activity</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsList className="bg-slate-100/50 p-1">
+              <TabsTrigger value="verification" className="data-[state=active]:shadow-sm">Verification Queue</TabsTrigger>
+              <TabsTrigger value="activity" className="data-[state=active]:shadow-sm">Platform Activity</TabsTrigger>
+              <TabsTrigger value="analytics" className="data-[state=active]:shadow-sm">Analytics</TabsTrigger>
             </TabsList>
 
             {/* Verification Queue */}
