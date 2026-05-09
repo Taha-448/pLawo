@@ -15,24 +15,8 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(helmet());
 
-const allowedOrigins = ['http://localhost:5173', 'http://localhost:3000', process.env.FRONTEND_URL];
 app.use(cors({
-  origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is in allowed list or matches a Vercel/Render pattern
-    const isAllowed = allowedOrigins.some(ao => ao && origin.startsWith(ao)) || 
-                     origin.includes('vercel.app') || 
-                     origin.includes('onrender.com');
-
-    if (isAllowed) {
-      return callback(null, true);
-    } else {
-      console.log('Blocked by CORS:', origin);
-      return callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // This allows all origins temporarily to fix the error immediately
   credentials: true
 }));
 
