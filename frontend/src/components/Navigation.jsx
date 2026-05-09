@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router';
-import { Scale, User, Menu, X } from 'lucide-react';
+import { Scale, User, Menu, X, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import { useState, useEffect } from 'react';
 export default function Navigation() {
@@ -49,8 +49,14 @@ export default function Navigation() {
 
           <div className="hidden md:flex items-center gap-8">
             <Link to="/search" className="text-[#1e293b] hover:text-[#a47731] transition-colors font-medium">Expertise</Link>
+            <Link to="/" className="text-[#1e293b] hover:text-[#a47731] transition-colors font-medium flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-[#a47731]" />
+              AI Lawyer
+            </Link>
             <Link to="/resources" className="text-[#1e293b] hover:text-[#a47731] transition-colors font-medium">Resources</Link>
             <Link to="/contact" className="text-[#1e293b] hover:text-[#a47731] transition-colors font-medium">Contact</Link>
+
+
             
             {currentUser ? (
               <>
@@ -76,7 +82,11 @@ export default function Navigation() {
         {mobileMenuOpen && (
           <div className="md:hidden pb-4 space-y-4">
             <Link to="/search" onClick={() => setMobileMenuOpen(false)} className="block font-medium">Expertise</Link>
-            <Link to="/#about" onClick={() => setMobileMenuOpen(false)} className="block font-medium">The Firm</Link>
+            <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 font-medium">
+              <Sparkles className="w-4 h-4 text-[#a47731]" />
+              AI Lawyer
+            </Link>
+            <Link to="/resources" onClick={() => setMobileMenuOpen(false)} className="block font-medium">Resources</Link>
             {currentUser ? (
               <>
                 <Link to={getDashboardLink()} onClick={() => setMobileMenuOpen(false)} className="block font-medium">Dashboard</Link>
